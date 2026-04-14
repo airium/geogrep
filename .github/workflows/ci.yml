@@ -1,0 +1,29 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Verify format
+        run: |
+          gofmt -l $(find cmd internal -name '*.go') | tee /tmp/gofmt.out
+          test ! -s /tmp/gofmt.out
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build -o geogrep ./cmd/geogrep

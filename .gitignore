@@ -1,0 +1,20 @@
+# Build artifacts
+/geogrep
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace/cache files
+coverage.out
+*.coverprofile
+
+# Common local files
+.DS_Store
+.idea/
+.vscode/
+
+# Generated lookup exports (optional)
+*.geogrep.json
