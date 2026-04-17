@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.5] - 2026-04-17
+
+### Changed
+
+- Hardened web server security.
+
 ## [0.2.4] - 2026-04-17
 
 ### Changed

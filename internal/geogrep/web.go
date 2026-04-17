@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,10 +13,15 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 //go:embed webui/*
 var embeddedWebUI embed.FS
+
+const (
+	maxLookupValueLength = 2048
+)
 
 type webRuntime struct {
 	cfg         CLIConfig
@@ -100,7 +106,17 @@ func runWeb(cfg CLIConfig) int {
 	}
 
 	fmt.Printf("[geogrep] web listening on http://%s (api_only=%t, databases=%d)\n", cfg.ListenAddr, cfg.APIOnly, len(discovery.Databases))
-	err = http.ListenAndServe(cfg.ListenAddr, mux)
+	server := &http.Server{
+		Addr:              cfg.ListenAddr,
+		Handler:           wrapWithPathGuards(mux),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
+
+	err = server.ListenAndServe()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "web server error: %v\n", err)
 		return 1
@@ -257,6 +273,10 @@ func (s *webRuntime) makeAPIFindHandler(kind string, force ForceKind, prefix str
 			writeAPIError(w, http.StatusBadRequest, "empty find value")
 			return
 		}
+		if len(value) > maxLookupValueLength {
+			writeAPIError(w, http.StatusRequestURITooLong, "find value too long")
+			return
+		}
 
 		query, err := classifyInput(0, RawInput{Value: value, Force: force})
 		if err != nil {
@@ -268,7 +288,8 @@ func (s *webRuntime) makeAPIFindHandler(kind string, force ForceKind, prefix str
 		results := runLookups([]Query{query}, s.databases, s.cfg.ReportEmpty)
 		s.lookupMu.Unlock()
 
-		document := buildExportDocument(s.discovery, []Query{query}, results, s.diagnostics, s.cfg.ReportEmpty)
+		// Avoid leaking loader/runtime internals in public API responses.
+		document := buildExportDocument(s.discovery, []Query{query}, results, nil, s.cfg.ReportEmpty)
 		response := apiFindResponse{
 			Request: apiFindRequest{Type: kind, Value: value},
 			Result:  document,
@@ -350,23 +371,110 @@ func (s *webRuntime) handleWebUI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
-	if name == "." || name == "" {
+	name, isIndex, ok := sanitizeWebAssetPath(r.URL.EscapedPath())
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if isIndex {
 		s.writeIndexHTML(w)
 		return
 	}
 
-	file, err := s.webUIFS.Open(name)
-	if err == nil {
-		defer file.Close()
-		if stat, statErr := file.Stat(); statErr == nil && !stat.IsDir() {
-			http.FileServer(http.FS(s.webUIFS)).ServeHTTP(w, r)
-			return
-		}
+	if s.serveWebAsset(w, name) {
+		return
 	}
 
 	// Keep visitors pinned to index page for SPA-like behavior.
 	s.writeIndexHTML(w)
+}
+
+func sanitizeWebAssetPath(escapedPath string) (string, bool, bool) {
+	if escapedPath == "" || escapedPath == "/" {
+		return "index.html", true, true
+	}
+	if !strings.HasPrefix(escapedPath, "/") {
+		return "", false, false
+	}
+
+	raw := strings.TrimPrefix(escapedPath, "/")
+	if raw == "" {
+		return "index.html", true, true
+	}
+
+	lowerRaw := strings.ToLower(raw)
+	if strings.Contains(lowerRaw, "%2f") || strings.Contains(lowerRaw, "%5c") {
+		return "", false, false
+	}
+
+	unescaped, err := url.PathUnescape(raw)
+	if err != nil {
+		return "", false, false
+	}
+	if strings.ContainsRune(unescaped, 0) {
+		return "", false, false
+	}
+	unescaped = strings.ReplaceAll(unescaped, "\\", "/")
+
+	parts := strings.Split(unescaped, "/")
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			return "", false, false
+		}
+	}
+
+	cleaned := path.Clean(unescaped)
+	if cleaned == "." || cleaned == "" {
+		return "index.html", true, true
+	}
+
+	return cleaned, false, true
+}
+
+func (s *webRuntime) serveWebAsset(w http.ResponseWriter, name string) bool {
+	content, err := fs.ReadFile(s.webUIFS, name)
+	if err != nil {
+		return false
+	}
+
+	setSecurityHeaders(w)
+	contentType := mime.TypeByExtension(strings.ToLower(path.Ext(name)))
+	if contentType == "" {
+		contentType = http.DetectContentType(content)
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(content)
+	return true
+}
+
+func wrapWithPathGuards(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hasSuspiciousTraversalPath(r.URL.EscapedPath()) {
+			setSecurityHeaders(w)
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func hasSuspiciousTraversalPath(escapedPath string) bool {
+	lower := strings.ToLower(escapedPath)
+	if lower == "" {
+		return false
+	}
+	if strings.Contains(lower, "\\") || strings.Contains(lower, "%5c") {
+		return true
+	}
+	if strings.Contains(lower, "%2e%2e") {
+		return true
+	}
+	if strings.HasPrefix(lower, "/..") || strings.Contains(lower, "/../") || strings.HasSuffix(lower, "/..") {
+		return true
+	}
+	return false
 }
 
 func (s *webRuntime) writeIndexHTML(w http.ResponseWriter) {
@@ -375,7 +483,9 @@ func (s *webRuntime) writeIndexHTML(w http.ResponseWriter) {
 		http.Error(w, "index not found", http.StatusInternalServerError)
 		return
 	}
+	setSecurityHeaders(w)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(content)
 }
@@ -385,9 +495,19 @@ func writeAPIError(w http.ResponseWriter, status int, message string) {
 }
 
 func writeAPIJSON(w http.ResponseWriter, status int, payload any) {
+	setSecurityHeaders(w)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(payload)
+}
+
+func setSecurityHeaders(w http.ResponseWriter) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
 }
