@@ -49,7 +49,17 @@ func printQueryResults(results []QueryResult, reportEmpty bool) {
 }
 
 func writeJSON(path string, discovery DiscoveryResult, queries []Query, results []QueryResult, diags []Diagnostic, reportEmpty bool) error {
-	doc := ExportDocument{
+	doc := buildExportDocument(discovery, queries, results, diags, reportEmpty)
+
+	data, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
+func buildExportDocument(discovery DiscoveryResult, queries []Query, results []QueryResult, diags []Diagnostic, reportEmpty bool) ExportDocument {
+	return ExportDocument{
 		Metadata: ExportMetadata{
 			GeneratedAt:    time.Now().UTC(),
 			DatabaseRoot:   discovery.RootDir,
@@ -61,10 +71,4 @@ func writeJSON(path string, discovery DiscoveryResult, queries []Query, results 
 		Results:     results,
 		Diagnostics: diags,
 	}
-
-	data, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
 }

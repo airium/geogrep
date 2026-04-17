@@ -17,6 +17,9 @@ func Execute(args []string) int {
 		printVersion()
 		return 0
 	}
+	if cfg.Command == "web" {
+		return runWeb(cfg)
+	}
 
 	queries, err := normalizeQueries(cfg.Inputs)
 	if err != nil {
@@ -55,5 +58,5 @@ func Execute(args []string) int {
 
 func printUsage(parseErr error) {
 	fmt.Fprintf(os.Stderr, "error: %v\n", parseErr)
-	fmt.Fprintln(os.Stderr, "usage:\n  geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db DB_DIR|DB_FILE] [-4 IPv4/CIDR] [-6 IPv6/CIDR6] [-d DOMAIN] [-k KEYWORD] IPv4/CIDR/IPv6/CIDR6/DOMAIN/KEYWORD\n  geogrep version")
+	fmt.Fprintln(os.Stderr, "usage:\n  geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db|--database DB_DIR|DB_FILE] [-4 IPv4/CIDR] [-6 IPv6/CIDR6] [-d DOMAIN] [-k KEYWORD] IPv4/CIDR/IPv6/CIDR6/DOMAIN/KEYWORD\n  geogrep web [-db|--database DB_DIR|DB_FILE] [-l|--listen IP:PORT] [--webui PATH] [--api-only] [-v|--verbose[=N]]\n  geogrep version")
 }

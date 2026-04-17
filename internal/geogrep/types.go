@@ -48,6 +48,9 @@ type CLIConfig struct {
 	JSONPath    string
 	ReportEmpty bool
 	Verbose     int
+	ListenAddr  string
+	WebUIPath   string
+	APIOnly     bool
 	Inputs      []RawInput
 }
 
