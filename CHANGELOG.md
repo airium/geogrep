@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2026-04-17
+
+### Changed
+
+- Improved default web UI result cards:
+	- Added clickable expansion for folded `+n more` match lines.
+	- Adjusted default result grid to 2 columns.
+- Updated lookup input row layout so the query input occupies remaining row width.
+- Reworked share/API URL UX:
+	- Removed inline share hint text.
+	- Replaced visible URL links with copy buttons (`Copy Share URL`, `Copy API URL`).
+	- Copy buttons only appear after successful lookup and are shown in the result header row.
+
 ## [0.2.1] - 2026-04-17
 
 ### Changed

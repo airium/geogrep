@@ -81,6 +81,15 @@
       align-items: stretch;
     }
 
+    .form-row > label {
+      display: block;
+      min-width: 0;
+    }
+
+    #lookup-value {
+      width: 100%;
+    }
+
     select,
     input,
     button,
@@ -123,24 +132,34 @@
       filter: brightness(0.97);
     }
 
-    .hint {
-      margin: 9px 0 0;
-      color: var(--muted);
-      font-size: 0.92rem;
+    .result-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
     }
 
-    .links {
-      display: grid;
-      grid-template-columns: 1fr;
+    .result-text {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .copy-actions {
+      display: flex;
       gap: 8px;
-      margin-top: 12px;
-      font-size: 0.93rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
-    .links a {
-      color: #0e5fa4;
-      word-break: break-all;
-      text-decoration-thickness: 1px;
+    .copy-actions.hidden {
+      display: none;
+    }
+
+    .copy-btn {
+      min-width: 0;
+      padding: 8px 10px;
+      font-size: 0.85rem;
+      background: linear-gradient(150deg, #2d7aa5, #275e80);
     }
 
     .status {
@@ -167,7 +186,7 @@
 
     .cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       margin: 12px 0 0;
       padding: 0;
@@ -187,6 +206,29 @@
       display: block;
       margin-bottom: 4px;
       color: #233;
+    }
+
+    .expand-toggle {
+      margin-top: 8px;
+      background: transparent;
+      color: #0e5fa4;
+      border: 1px dashed #9cb7cc;
+      min-width: 0;
+      padding: 6px 8px;
+      font-weight: 600;
+      border-radius: 10px;
+    }
+
+    .extra-lines {
+      display: none;
+      margin-top: 8px;
+      color: #334;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .extra-lines.open {
+      display: block;
     }
 
     details {
@@ -240,6 +282,18 @@
         grid-template-columns: 1fr;
       }
 
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .result-head {
+        flex-direction: column;
+      }
+
+      .copy-actions {
+        justify-content: flex-start;
+      }
+
       button {
         width: 100%;
       }
@@ -280,18 +334,19 @@
           <button id="lookup-button" type="submit">Run Lookup</button>
         </div>
       </form>
-
-      <p class="hint">Share links use the compact route format: <code>/find/{type}/{value}</code>. API calls use <code>/api/find/{type}/{value}</code>.</p>
-
-      <div class="links">
-        <div>Share URL: <a id="share-link" href="/">/</a></div>
-        <div>API URL: <a id="api-link" href="/">/</a></div>
-      </div>
     </section>
 
     <section class="panel">
-      <p id="status" class="status"></p>
-      <p id="summary" class="summary"></p>
+      <div class="result-head">
+        <div class="result-text">
+          <p id="status" class="status"></p>
+          <p id="summary" class="summary"></p>
+        </div>
+        <div id="copy-actions" class="copy-actions hidden">
+          <button id="copy-share" class="copy-btn" type="button">Copy Share URL</button>
+          <button id="copy-api" class="copy-btn" type="button">Copy API URL</button>
+        </div>
+      </div>
       <ul id="matches" class="cards"></ul>
       <details>
         <summary>Raw JSON response</summary>
@@ -314,8 +369,12 @@
       var summaryEl = document.getElementById("summary");
       var matchesEl = document.getElementById("matches");
       var rawEl = document.getElementById("raw-json");
-      var shareLinkEl = document.getElementById("share-link");
-      var apiLinkEl = document.getElementById("api-link");
+      var copyActionsEl = document.getElementById("copy-actions");
+      var copyShareEl = document.getElementById("copy-share");
+      var copyAPIEl = document.getElementById("copy-api");
+
+      var currentShareURL = "";
+      var currentAPIURL = "";
 
       function sanitizeType(type) {
         if (["auto", "ipv4", "ipv6", "domain", "keyword"].indexOf(type) >= 0) {
@@ -338,21 +397,60 @@
 
       function setLinks(type, value) {
         if (!value) {
-          shareLinkEl.textContent = "/";
-          shareLinkEl.href = "/";
-          apiLinkEl.textContent = "/";
-          apiLinkEl.href = "/";
+          currentShareURL = "";
+          currentAPIURL = "";
           return;
         }
 
         var sharePath = buildSharePath(type, value);
         var apiPath = buildAPIPath(type, value);
+        currentShareURL = toAbsolute(sharePath);
+        currentAPIURL = toAbsolute(apiPath);
+      }
 
-        shareLinkEl.textContent = toAbsolute(sharePath);
-        shareLinkEl.href = sharePath;
+      function toggleCopyActions(show) {
+        if (show) {
+          copyActionsEl.classList.remove("hidden");
+          return;
+        }
+        copyActionsEl.classList.add("hidden");
+      }
 
-        apiLinkEl.textContent = toAbsolute(apiPath);
-        apiLinkEl.href = apiPath;
+      function flashButtonText(button, text, timeoutMs) {
+        var original = button.textContent;
+        button.textContent = text;
+        window.setTimeout(function () {
+          button.textContent = original;
+        }, timeoutMs);
+      }
+
+      async function copyToClipboard(text) {
+        if (!text) {
+          return false;
+        }
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true;
+          }
+        } catch (_) {
+        }
+
+        try {
+          var temp = document.createElement("textarea");
+          temp.value = text;
+          temp.setAttribute("readonly", "readonly");
+          temp.style.position = "fixed";
+          temp.style.opacity = "0";
+          document.body.appendChild(temp);
+          temp.focus();
+          temp.select();
+          var ok = document.execCommand("copy");
+          document.body.removeChild(temp);
+          return ok;
+        } catch (_) {
+          return false;
+        }
       }
 
       function clearStatus() {
@@ -392,7 +490,19 @@
             return escapeHTML(sub + m.rule);
           });
 
-          var extra = dbMatches.length > 3 ? "<div>+" + (dbMatches.length - 3) + " more</div>" : "";
+          var extraLines = dbMatches.slice(3).map(function (m) {
+            var sub = m.sub_entry ? m.sub_entry + " | " : "";
+            return escapeHTML(sub + m.rule);
+          });
+
+          var extra = "";
+          if (extraLines.length > 0) {
+            extra = "<div>" +
+              "<button type=\"button\" class=\"expand-toggle\" data-more-text=\"+" + extraLines.length + " more\">+" + extraLines.length + " more</button>" +
+              "<div class=\"extra-lines\">" + extraLines.join("<br>") + "</div>" +
+            "</div>";
+          }
+
           cards.push(
             "<li>" +
               "<b>" + escapeHTML(db.database || "(unknown database)") + "</b>" +
@@ -405,6 +515,12 @@
 
         summaryEl.textContent = "Matched " + matchedDB + " database(s), total " + totalMatches + " rule match(es).";
         matchesEl.innerHTML = cards.join("");
+      }
+
+      function clearResultArea() {
+        summaryEl.textContent = "";
+        matchesEl.innerHTML = "";
+        toggleCopyActions(false);
       }
 
       function escapeHTML(text) {
@@ -422,11 +538,11 @@
         var type = sanitizeType(typeEl.value);
         var value = valueEl.value.trim();
         setLinks(type, value);
+        toggleCopyActions(false);
 
         if (!value) {
           setStatus("Input is required.", "error");
-          summaryEl.textContent = "";
-          matchesEl.innerHTML = "";
+          clearResultArea();
           rawEl.textContent = "No request has been made yet.";
           return;
         }
@@ -448,22 +564,53 @@
           if (!response.ok) {
             var msg = payload && payload.error ? payload.error : "Request failed";
             setStatus("Lookup failed: " + msg, "error");
-            summaryEl.textContent = "";
-            matchesEl.innerHTML = "";
+            clearResultArea();
             return;
           }
 
           setStatus("Lookup succeeded.", "ok");
           renderSummary(payload);
+          toggleCopyActions(true);
         } catch (err) {
           rawEl.textContent = "";
-          summaryEl.textContent = "";
-          matchesEl.innerHTML = "";
+          clearResultArea();
           setStatus("Network error: " + (err && err.message ? err.message : String(err)), "error");
         } finally {
           buttonEl.disabled = false;
         }
       }
+
+      matchesEl.addEventListener("click", function (event) {
+        var toggle = event.target.closest(".expand-toggle");
+        if (!toggle) {
+          return;
+        }
+        var wrapper = toggle.parentElement;
+        if (!wrapper) {
+          return;
+        }
+        var lines = wrapper.querySelector(".extra-lines");
+        if (!lines) {
+          return;
+        }
+
+        var open = lines.classList.toggle("open");
+        if (open) {
+          toggle.textContent = "Show less";
+        } else {
+          toggle.textContent = toggle.getAttribute("data-more-text") || "+more";
+        }
+      });
+
+      copyShareEl.addEventListener("click", async function () {
+        var ok = await copyToClipboard(currentShareURL);
+        flashButtonText(copyShareEl, ok ? "Copied" : "Copy failed", 1200);
+      });
+
+      copyAPIEl.addEventListener("click", async function () {
+        var ok = await copyToClipboard(currentAPIURL);
+        flashButtonText(copyAPIEl, ok ? "Copied" : "Copy failed", 1200);
+      });
 
       form.addEventListener("submit", function (event) {
         event.preventDefault();
