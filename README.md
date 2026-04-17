@@ -217,6 +217,9 @@ go build -o geogrep ./cmd/geogrep
 # Build with embedded release metadata from VERSION
 make build
 
+# Build native + Windows amd64 release binaries
+make all
+
 # Test
 go test ./...
 
