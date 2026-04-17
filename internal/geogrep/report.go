@@ -62,7 +62,6 @@ func buildExportDocument(discovery DiscoveryResult, queries []Query, results []Q
 	return ExportDocument{
 		Metadata: ExportMetadata{
 			GeneratedAt:    time.Now().UTC(),
-			DatabaseRoot:   discovery.RootDir,
 			DatabaseCount:  len(discovery.Databases),
 			QueryCount:     len(queries),
 			ReportEmpty:    reportEmpty,

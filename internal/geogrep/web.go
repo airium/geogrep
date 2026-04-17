@@ -42,11 +42,10 @@ type apiErrorResponse struct {
 }
 
 type healthResponse struct {
-	Status       string `json:"status"`
-	Service      string `json:"service"`
-	Version      string `json:"version"`
-	DatabaseRoot string `json:"database_root"`
-	DatabaseCnt  int    `json:"database_count"`
+	Status      string `json:"status"`
+	Service     string `json:"service"`
+	Version     string `json:"version"`
+	DatabaseCnt int    `json:"database_count"`
 }
 
 func runWeb(cfg CLIConfig) int {
@@ -116,11 +115,10 @@ func (s *webRuntime) handleHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeAPIJSON(w, http.StatusOK, healthResponse{
-		Status:       "ok",
-		Service:      "geogrep",
-		Version:      Version,
-		DatabaseRoot: s.discovery.RootDir,
-		DatabaseCnt:  len(s.discovery.Databases),
+		Status:      "ok",
+		Service:     "geogrep",
+		Version:     Version,
+		DatabaseCnt: len(s.discovery.Databases),
 	})
 }
 

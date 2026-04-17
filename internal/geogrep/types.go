@@ -143,7 +143,6 @@ type QueryResult struct {
 
 type ExportMetadata struct {
 	GeneratedAt    time.Time `json:"generated_at"`
-	DatabaseRoot   string    `json:"database_root"`
 	DatabaseCount  int       `json:"database_count"`
 	QueryCount     int       `json:"query_count"`
 	ReportEmpty    bool      `json:"report_empty"`
