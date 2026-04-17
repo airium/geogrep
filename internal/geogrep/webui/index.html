@@ -39,7 +39,7 @@
     }
 
     .wrap {
-      max-width: 980px;
+      max-width: 1960px;
       margin: 0 auto;
       padding: 28px 18px 42px;
       animation: rise 360ms ease-out;
@@ -76,7 +76,7 @@
 
     .form-row {
       display: grid;
-      grid-template-columns: 180px 1fr auto;
+      grid-template-columns: max-content minmax(0, 1fr) auto;
       gap: 10px;
       align-items: stretch;
     }
@@ -84,6 +84,11 @@
     .form-row > label {
       display: block;
       min-width: 0;
+    }
+
+    #lookup-type {
+      min-width: 180px;
+      width: 100%;
     }
 
     #lookup-value {
@@ -166,6 +171,7 @@
       margin: 0;
       min-height: 1.35em;
       font-size: 0.95rem;
+      font-family: "IBM Plex Mono", "DejaVu Sans Mono", "SFMono-Regular", monospace;
     }
 
     .status.error {
@@ -182,11 +188,12 @@
       margin: 8px 0 0;
       color: var(--muted);
       font-size: 0.95rem;
+      font-family: "IBM Plex Mono", "DejaVu Sans Mono", "SFMono-Regular", monospace;
     }
 
     .cards {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(720px, 1fr));
       gap: 10px;
       margin: 12px 0 0;
       padding: 0;
@@ -194,22 +201,47 @@
     }
 
     .cards li {
+      min-width: 720px;
       border: 1px solid #d7e4db;
       border-radius: 12px;
       background: #fbfefc;
       padding: 10px 12px;
       font-size: 0.92rem;
       color: #334;
+      font-family: "IBM Plex Mono", "DejaVu Sans Mono", "SFMono-Regular", monospace;
     }
 
-    .cards b {
+    .card-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      column-gap: 10px;
+      row-gap: 2px;
+      align-items: start;
+      margin-bottom: 6px;
+    }
+
+    .db-name {
+      grid-column: 1;
+      grid-row: 1;
       display: block;
-      margin-bottom: 4px;
+      margin-bottom: 0;
       color: #233;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .match-count {
+      grid-column: 1;
+      grid-row: 2;
+      color: #334;
     }
 
     .expand-toggle {
-      margin-top: 8px;
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      align-self: stretch;
+      justify-self: end;
       background: transparent;
       color: #0e5fa4;
       border: 1px dashed #9cb7cc;
@@ -219,16 +251,35 @@
       border-radius: 10px;
     }
 
+    .card-lines,
+    .extra-lines {
+      color: #334;
+      font-size: inherit;
+      line-height: inherit;
+    }
+
     .extra-lines {
       display: none;
-      margin-top: 8px;
-      color: #334;
-      font-size: 0.9rem;
-      line-height: 1.4;
+      margin-top: 0;
     }
 
     .extra-lines.open {
       display: block;
+    }
+
+    .more-hint {
+      margin-top: 6px;
+      color: #5a6b6d;
+      font-size: 0.88rem;
+      font-family: "IBM Plex Mono", "DejaVu Sans Mono", "SFMono-Regular", monospace;
+    }
+
+    .more-hint.hidden {
+      display: none;
+    }
+
+    .card-lines {
+      margin-top: 2px;
     }
 
     details {
@@ -286,6 +337,10 @@
         grid-template-columns: 1fr;
       }
 
+      .cards li {
+        min-width: 0;
+      }
+
       .result-head {
         flex-direction: column;
       }
@@ -312,7 +367,7 @@
 <body>
   <main class="wrap">
     <section class="hero">
-      <h1>geogrep web</h1>
+      <h1><a href="https://github.com/airium/geogrep" target="_blank">geogrep</a> web</h1>
       <p>Search geo databases from your browser with the same matching engine as <code>geogrep find</code>.</p>
     </section>
 
@@ -354,7 +409,7 @@
       </details>
     </section>
 
-    <p class="foot">geogrep embedded web UI</p>
+    <p class="foot"><a href="https://github.com/airium/geogrep" target="_blank">geogrep</a> embedded web UI</p>
   </main>
 
   <script>
@@ -495,20 +550,25 @@
             return escapeHTML(sub + m.rule);
           });
 
+          var hasMore = extraLines.length > 0;
+          var cardHead = "<div class=\"card-head\">" +
+            "<b class=\"db-name\">" + escapeHTML(db.database || "(unknown database)") + "</b>" +
+            "<div class=\"match-count\">matches: " + dbMatches.length + "</div>";
           var extra = "";
-          if (extraLines.length > 0) {
-            extra = "<div>" +
-              "<button type=\"button\" class=\"expand-toggle\" data-more-text=\"+" + extraLines.length + " more\">+" + extraLines.length + " more</button>" +
-              "<div class=\"extra-lines\">" + extraLines.join("<br>") + "</div>" +
-            "</div>";
+          var moreHint = "";
+          if (hasMore) {
+            cardHead += "<button type=\"button\" class=\"expand-toggle\" aria-expanded=\"false\">Show more</button>";
+            extra = "<div class=\"extra-lines\">" + extraLines.join("<br>") + "</div>";
+            moreHint = "<div class=\"more-hint\">+" + extraLines.length + " more</div>";
           }
+          cardHead += "</div>";
 
           cards.push(
-            "<li>" +
-              "<b>" + escapeHTML(db.database || "(unknown database)") + "</b>" +
-              "<div>matches: " + dbMatches.length + "</div>" +
-              (lines.length ? "<div>" + lines.join("<br>") + "</div>" : "") +
+            "<li" + (hasMore ? " class=\"has-more\"" : "") + ">" +
+              cardHead +
+              (lines.length ? "<div class=\"card-lines\">" + lines.join("<br>") + "</div>" : "") +
               extra +
+              moreHint +
             "</li>"
           );
         });
@@ -585,20 +645,31 @@
         if (!toggle) {
           return;
         }
-        var wrapper = toggle.parentElement;
-        if (!wrapper) {
+        var card = toggle.closest("li");
+        if (!card) {
           return;
         }
-        var lines = wrapper.querySelector(".extra-lines");
+        var lines = card.querySelector(".extra-lines");
+        var hint = card.querySelector(".more-hint");
         if (!lines) {
           return;
         }
 
         var open = lines.classList.toggle("open");
         if (open) {
+          card.classList.add("expanded");
           toggle.textContent = "Show less";
+          toggle.setAttribute("aria-expanded", "true");
+          if (hint) {
+            hint.classList.add("hidden");
+          }
         } else {
-          toggle.textContent = toggle.getAttribute("data-more-text") || "+more";
+          card.classList.remove("expanded");
+          toggle.textContent = "Show more";
+          toggle.setAttribute("aria-expanded", "false");
+          if (hint) {
+            hint.classList.remove("hidden");
+          }
         }
       });
 

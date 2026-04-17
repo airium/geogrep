@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2026-04-17
+
+### Changed
+
+- Refined default web UI layout and result rendering:
+	- Expanded content width to `1960px` max.
+	- Updated lookup form row sizing so `lookup-value` absorbs remaining row width.
+	- Search results now render with monospace typography.
+	- Result card grid now uses a `720px` minimum card width with adaptive columns.
+- Improved folded-match UX:
+	- Moved fold toggle button to the top-right of each result card.
+	- Toggle labels are now `Show more` and `Show less`.
+	- Added bottom `+n more` hint for folded content that hides when expanded.
+	- Fold controls and hints only render when folded items exist.
+
 ## [0.2.2] - 2026-04-17
 
 ### Changed
