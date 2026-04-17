@@ -3,11 +3,31 @@ package geogrep
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
 func parseCLIArgs(args []string) (CLIConfig, error) {
-	cfg := CLIConfig{}
+	if len(args) == 0 {
+		return CLIConfig{}, errors.New("missing subcommand: use 'find' or 'version'")
+	}
+
+	subcommand := strings.TrimSpace(args[0])
+	switch subcommand {
+	case "version":
+		if len(args) > 1 {
+			return CLIConfig{}, errors.New("version subcommand does not accept additional arguments")
+		}
+		return CLIConfig{Command: "version"}, nil
+	case "find":
+		return parseFindArgs(args[1:])
+	default:
+		return CLIConfig{}, fmt.Errorf("unknown subcommand: %s", subcommand)
+	}
+}
+
+func parseFindArgs(args []string) (CLIConfig, error) {
+	cfg := CLIConfig{Command: "find"}
 	stopFlagParsing := false
 
 	for i := 0; i < len(args); i++ {
@@ -24,10 +44,20 @@ func parseCLIArgs(args []string) (CLIConfig, error) {
 		switch {
 		case arg == "--":
 			stopFlagParsing = true
-		case arg == "-v" || arg == "--version":
-			cfg.ShowVersion = true
-		case arg == "--report-empty":
-			cfg.ReportEmpty = true
+		case arg == "-v" || arg == "--verbose":
+			cfg.Verbose++
+		case strings.HasPrefix(arg, "--verbose="):
+			lvlRaw := strings.TrimSpace(strings.TrimPrefix(arg, "--verbose="))
+			if lvlRaw == "" {
+				return CLIConfig{}, errors.New("--verbose requires a level")
+			}
+			lvl, err := strconv.Atoi(lvlRaw)
+			if err != nil || lvl < 0 {
+				return CLIConfig{}, errors.New("--verbose level must be a non-negative integer")
+			}
+			cfg.Verbose = lvl
+		case strings.HasPrefix(arg, "-v") && isCompactVerboseFlag(arg):
+			cfg.Verbose += len(arg) - 1
 		case strings.HasPrefix(arg, "--json="):
 			cfg.JSONPath = strings.TrimSpace(strings.TrimPrefix(arg, "--json="))
 			if cfg.JSONPath == "" {
@@ -116,15 +146,27 @@ func parseCLIArgs(args []string) (CLIConfig, error) {
 		}
 	}
 
-	if cfg.ShowVersion {
-		return cfg, nil
-	}
-
 	if len(cfg.Inputs) == 0 {
 		return CLIConfig{}, errors.New("no lookup input provided")
 	}
 
+	if cfg.Verbose > 0 {
+		cfg.ReportEmpty = true
+	}
+
 	return cfg, nil
+}
+
+func isCompactVerboseFlag(arg string) bool {
+	if len(arg) < 2 || arg[0] != '-' {
+		return false
+	}
+	for i := 1; i < len(arg); i++ {
+		if arg[i] != 'v' {
+			return false
+		}
+	}
+	return true
 }
 
 func consumeNextArg(args []string, i int, flagName string) (string, int, error) {

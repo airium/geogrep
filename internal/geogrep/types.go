@@ -43,10 +43,11 @@ type Query struct {
 }
 
 type CLIConfig struct {
+	Command     string
 	DBDir       string
 	JSONPath    string
 	ReportEmpty bool
-	ShowVersion bool
+	Verbose     int
 	Inputs      []RawInput
 }
 

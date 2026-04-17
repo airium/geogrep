@@ -13,7 +13,7 @@ func Execute(args []string) int {
 		return 2
 	}
 
-	if cfg.ShowVersion {
+	if cfg.Command == "version" {
 		printVersion()
 		return 0
 	}
@@ -55,5 +55,5 @@ func Execute(args []string) int {
 
 func printUsage(parseErr error) {
 	fmt.Fprintf(os.Stderr, "error: %v\n", parseErr)
-	fmt.Fprintln(os.Stderr, "usage: geogrep [--version|-v] [--report-empty] [--json RESULT_PATH] [-db DB_DIR] [-4 IPv4/CIDR] [-6 IPv6/CIDR6] [-d DOMAIN] [-k KEYWORD] IPv4/CIDR/IPv6/CIDR6/DOMAIN/KEYWORD")
+	fmt.Fprintln(os.Stderr, "usage:\n  geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db DB_DIR|DB_FILE] [-4 IPv4/CIDR] [-6 IPv6/CIDR6] [-d DOMAIN] [-k KEYWORD] IPv4/CIDR/IPv6/CIDR6/DOMAIN/KEYWORD\n  geogrep version")
 }

@@ -24,18 +24,46 @@ var supportedExtensions = map[string]struct{}{
 
 func resolveDiscovery(cfg CLIConfig) (DiscoveryResult, error) {
 	if cfg.DBDir != "" {
-		root, err := filepath.Abs(cfg.DBDir)
+		resolved, err := filepath.Abs(cfg.DBDir)
 		if err != nil {
 			return DiscoveryResult{}, fmt.Errorf("resolve -db path: %w", err)
 		}
-		dbs, err := discoverDatabases(root)
+
+		info, err := os.Stat(resolved)
+		if err != nil {
+			return DiscoveryResult{}, fmt.Errorf("stat -db path: %w", err)
+		}
+
+		if !info.IsDir() {
+			name := filepath.Base(resolved)
+			if !isSupportedDataFile(name) {
+				return DiscoveryResult{}, fmt.Errorf("unsupported database file: %s", resolved)
+			}
+			root := filepath.Dir(resolved)
+			return DiscoveryResult{
+				RootDir: root,
+				Databases: []DiscoveredDatabase{
+					{
+						Name: name,
+						Sources: []DiscoveredSource{
+							{
+								Display: name,
+								Path:    resolved,
+							},
+						},
+					},
+				},
+			}, nil
+		}
+
+		dbs, err := discoverDatabases(resolved)
 		if err != nil {
 			return DiscoveryResult{}, err
 		}
 		if len(dbs) == 0 {
-			return DiscoveryResult{}, fmt.Errorf("no supported database files found in %s", root)
+			return DiscoveryResult{}, fmt.Errorf("no supported database files found in %s", resolved)
 		}
-		return DiscoveryResult{RootDir: root, Databases: dbs}, nil
+		return DiscoveryResult{RootDir: resolved, Databases: dbs}, nil
 	}
 
 	cwd, err := os.Getwd()

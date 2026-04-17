@@ -41,3 +41,31 @@ func TestDiscoverDatabases(t *testing.T) {
 		t.Fatalf("source display=%s", dbs[1].Sources[0].Display)
 	}
 }
+
+func TestResolveDiscoveryFromSingleFile(t *testing.T) {
+	tmp := t.TempDir()
+	filePath := filepath.Join(tmp, "single.dat")
+	if err := os.WriteFile(filePath, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := resolveDiscovery(CLIConfig{DBDir: filePath})
+	if err != nil {
+		t.Fatalf("resolveDiscovery error: %v", err)
+	}
+	if result.RootDir != tmp {
+		t.Fatalf("root=%s want=%s", result.RootDir, tmp)
+	}
+	if len(result.Databases) != 1 {
+		t.Fatalf("database count=%d want=1", len(result.Databases))
+	}
+	if result.Databases[0].Name != "single.dat" {
+		t.Fatalf("database name=%s want=single.dat", result.Databases[0].Name)
+	}
+	if len(result.Databases[0].Sources) != 1 {
+		t.Fatalf("source count=%d want=1", len(result.Databases[0].Sources))
+	}
+	if result.Databases[0].Sources[0].Path != filePath {
+		t.Fatalf("source path=%s want=%s", result.Databases[0].Sources[0].Path, filePath)
+	}
+}
