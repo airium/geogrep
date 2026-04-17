@@ -4,7 +4,7 @@ import "fmt"
 
 var (
 	// Version is the application version. It can be overridden via -ldflags.
-	Version = "0.2.3"
+	Version = "0.2.4"
 	// Commit is the source revision. It can be overridden via -ldflags.
 	Commit = "unknown"
 	// BuildDate is the UTC build timestamp. It can be overridden via -ldflags.

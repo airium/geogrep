@@ -175,8 +175,14 @@ Given `DB_FILE` (when `-db` points to a file):
 
 For each input:
 - matched databases and match counts
-- each match line includes source, format, sub-entry, and matched rule
+- each match line includes source/database, format, category, and matched rule
+  - for grouped folder sources, filename is always used as category
 - optional no-match lines when verbose level is `>= 1`
+
+### Web UI
+
+- result card title shows database and total match count
+- per-match lines show `category | rule` for readability (database and format are omitted there)
 
 ### JSON export
 

@@ -33,10 +33,11 @@ func printQueryResults(results []QueryResult, reportEmpty bool) {
 			if db.Matched {
 				fmt.Printf("  %s: %d match(es)\n", db.Database, len(db.Matches))
 				for _, match := range db.Matches {
-					if match.SubEntry != "" {
-						fmt.Printf("    - %s | %s | %s | %s\n", match.Source, match.Format, match.SubEntry, match.Rule)
+					sourceCol, formatCol, categoryCol := formatMatchColumns(db.Database, match)
+					if categoryCol != "" {
+						fmt.Printf("    - %s | %s | %s | %s\n", sourceCol, formatCol, categoryCol, match.Rule)
 					} else {
-						fmt.Printf("    - %s | %s | %s\n", match.Source, match.Format, match.Rule)
+						fmt.Printf("    - %s | %s | %s\n", sourceCol, formatCol, match.Rule)
 					}
 				}
 				continue
@@ -46,6 +47,29 @@ func printQueryResults(results []QueryResult, reportEmpty bool) {
 			}
 		}
 	}
+}
+
+func formatMatchColumns(dbName string, match MatchRecord) (string, string, string) {
+	sourceCol := strings.TrimSpace(match.Source)
+	formatCol := strings.TrimSpace(match.Format)
+	categoryCol := strings.TrimSpace(match.SubEntry)
+
+	if sourceCol == "" {
+		sourceCol = dbName
+	}
+
+	if idx := strings.IndexByte(sourceCol, '/'); idx > 0 {
+		dbCol := sourceCol[:idx]
+		fileCol := sourceCol[idx+1:]
+		sourceCol = dbCol
+		categoryCol = fileCol
+	}
+
+	if sourceCol == "" {
+		sourceCol = dbName
+	}
+
+	return sourceCol, formatCol, categoryCol
 }
 
 func writeJSON(path string, discovery DiscoveryResult, queries []Query, results []QueryResult, diags []Diagnostic, reportEmpty bool) error {

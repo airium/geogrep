@@ -518,6 +518,51 @@
         statusEl.className = "status" + (kind ? " " + kind : "");
       }
 
+      function normalizeMatchColumns(match, fallbackDBName) {
+        var sourceCol = String((match && match.source) || "").trim();
+        var formatCol = String((match && match.format) || "").trim();
+        var categoryCol = String((match && match.sub_entry) || "").trim();
+
+        if (!sourceCol) {
+          sourceCol = String(fallbackDBName || "");
+        }
+
+        var slashIndex = sourceCol.indexOf("/");
+        if (slashIndex > 0) {
+          var dbCol = sourceCol.slice(0, slashIndex);
+          var fileCol = sourceCol.slice(slashIndex + 1);
+          sourceCol = dbCol;
+          categoryCol = fileCol;
+        }
+
+        if (!sourceCol) {
+          sourceCol = String(fallbackDBName || "(unknown database)");
+        }
+
+        if (!formatCol) {
+          formatCol = "unknown";
+        }
+
+        return {
+          source: sourceCol,
+          format: formatCol,
+          category: categoryCol
+        };
+      }
+
+      function formatMatchLine(match, fallbackDBName) {
+        var columns = normalizeMatchColumns(match, fallbackDBName);
+        var rule = String((match && match.rule) || "").trim();
+        var pieces = [];
+
+        if (columns.category) {
+          pieces.push(columns.category);
+        }
+        pieces.push(rule);
+
+        return escapeHTML(pieces.join(" | "));
+      }
+
       function renderSummary(payload) {
         var results = payload && payload.result && payload.result.results;
         if (!Array.isArray(results) || results.length === 0) {
@@ -541,13 +586,11 @@
           totalMatches += dbMatches.length;
 
           var lines = dbMatches.slice(0, 3).map(function (m) {
-            var sub = m.sub_entry ? m.sub_entry + " | " : "";
-            return escapeHTML(sub + m.rule);
+            return formatMatchLine(m, db.database);
           });
 
           var extraLines = dbMatches.slice(3).map(function (m) {
-            var sub = m.sub_entry ? m.sub_entry + " | " : "";
-            return escapeHTML(sub + m.rule);
+            return formatMatchLine(m, db.database);
           });
 
           var hasMore = extraLines.length > 0;

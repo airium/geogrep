@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.4] - 2026-04-17
+
+### Changed
+
+- Web UI match lines now show only `category | rule` (database name and data format columns are hidden in per-rule lines).
+
 ## [0.2.3] - 2026-04-17
 
 ### Changed
