@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
   `.db` compatibility fallback.
 - `convert` now rejects output paths that overlap discovered input sources and
   writes output through temporary files before replacing the target.
+- `.dat` loading now rejects protobuf payloads that contain entries but no
+  usable GeoIP or GeoSite rules.
 - Agent and contributor guidance now points maintainers to the shared
   development workflow and one-fix-per-commit expectations.
 

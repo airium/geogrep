@@ -317,7 +317,7 @@ func loadDAT(source *LoadedSource) error {
 		return err
 	}
 
-	loadedAny := false
+	loadedRuleCount := 0
 
 	var ipList v2raygeo.GeoIPList
 	if err := proto.Unmarshal(bytes, &ipList); err == nil && len(ipList.GetEntry()) > 0 {
@@ -333,9 +333,9 @@ func loadDAT(source *LoadedSource) error {
 					Rule:     prefix.String(),
 					Prefix:   prefix,
 				})
+				loadedRuleCount++
 			}
 		}
-		loadedAny = true
 	}
 
 	var siteList v2raygeo.GeoSiteList
@@ -348,12 +348,12 @@ func loadDAT(source *LoadedSource) error {
 					continue
 				}
 				appendDomainRule(source, sub, fmt.Sprintf("%s:%s", ruleKind, value), ruleKind, value)
+				loadedRuleCount++
 			}
 		}
-		loadedAny = true
 	}
 
-	if !loadedAny {
+	if loadedRuleCount == 0 {
 		return errors.New("not a valid geosite.dat/geoip.dat protobuf payload")
 	}
 
