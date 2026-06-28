@@ -4,16 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-28
+
 ### Added
 
 - `convert` subcommand for converting loaded geodata rule data to JSON, YAML,
   list/txt, V2Ray/Xray `.dat`, singgeo `.db`, sing-box `.srs`, mihomo `.mrs`,
   and GeoIP `.mmdb` outputs.
+- `convert` accepts `-i/--input`, `-o/--output`, optional positional
+  input/output paths, and `--to` for explicit output format selection.
+- Output format inference for `convert` based on `.json`, `.yaml`, `.yml`,
+  `.list`, `.txt`, `.dat`, `.db`, `.srs`, `.mrs`, `.mmdb`, and `.metadb`
+  extensions.
+- Generated GeoIP MMDB output for IP/CIDR rule sets, including category values
+  in inserted records.
+- Target-specific conversion validation so unsupported mixed payloads or rule
+  kinds fail explicitly instead of producing partial output.
+- Conversion tests covering text-to-JSON, JSON-to-DAT, JSON-to-SRS,
+  JSON-to-MRS, JSON-to-singgeo, JSON-to-MMDB, and target rejection cases.
+- `FEATURES.md` with the current feature catalog and history summary.
+- `AGENTS.md` with maintainer and agent working guidance for this repository,
+  including an explicit checklist for related documentation updates.
 
 ### Changed
 
+- Embedded web UI was redesigned with a Kumo-inspired, dependency-free layout
+  including sidebar navigation, compact lookup controls, endpoint and examples
+  panels, lookup metrics, expandable match rows, copy actions, and raw JSON
+  inspection.
+- Web UI API behavior and share-link behavior remain compatible with the 0.2.x
+  routes.
+- README was expanded with quick-start examples, CLI reference, web/API usage,
+  conversion documentation, supported format details, compatibility matrix, and
+  build/test instructions.
+- Contributor guidance now tells maintainers to update related docs, including
+  `README.md`, `FEATURES.md`, `CHANGELOG.md`, `AGENTS.md`, and `SECURITY.md`,
+  alongside behavior changes.
 - JSON/YAML rule loading now preserves `category` fields and supports
   `domain_wildcard` and `adguard_domain` rule arrays.
+- Converted JSON/YAML documents group rules by category and include exact,
+  suffix, keyword, regex, wildcard, AdGuard domain, and IP CIDR rule arrays
+  where representable.
+- Converted rule output is sorted and deduplicated for stable generated files.
 
 ## [0.2.5] - 2026-04-17
 

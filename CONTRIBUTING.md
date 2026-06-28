@@ -26,7 +26,11 @@ go test ./...
 
 - Keep changes focused and small.
 - Add tests for new behavior and regressions.
-- Update README when CLI behavior or formats change.
+- Update related docs in the same PR when behavior changes. Check `README.md`,
+  `FEATURES.md`, `CHANGELOG.md`, `AGENTS.md`, and `SECURITY.md` as applicable.
+- Add a `CHANGELOG.md` entry for user-visible changes, supported-format changes,
+  compatibility changes, migration notes, security hardening, and notable bug
+  fixes.
 - Include sample command output for user-facing behavior updates.
 
 ## Commit guidance

@@ -73,12 +73,28 @@ directory rather than relying on implicit discovery.
 
 ## Documentation Expectations
 
+Treat user-visible code changes and their related docs as one change. Before
+finishing any feature, behavior change, CLI/API change, format support change,
+web UI change, release workflow change, or security-sensitive fix, check the
+related documentation files and update them in the same change when applicable.
+If no documentation update is needed, mention that in the final summary.
+
 - Keep `README.md` focused on user-facing setup, CLI/API usage, supported
-  formats, output, and build instructions.
+  formats, output, examples, conversion behavior, and build instructions.
 - Keep `FEATURES.md` as the detailed feature catalog and history summary.
-- Keep `CHANGELOG.md` release-oriented.
-- Update docs when changing CLI flags, API routes, output shape, supported
-  formats, discovery behavior, or web UI behavior.
+- Keep `CHANGELOG.md` release-oriented. Add an entry for every user-visible
+  change, supported-format change, compatibility change, migration note,
+  security hardening, notable bug fix, and release-relevant documentation
+  addition.
+- Keep `CONTRIBUTING.md` aligned with development, testing, pull request, and
+  release expectations.
+- Keep this `AGENTS.md` aligned with repository structure, agent workflow,
+  documentation policy, and safety-sensitive project rules.
+- Check `SECURITY.md` when changing security posture, disclosure guidance,
+  serving behavior, path handling, or data exposure.
+- Update examples, compatibility matrices, and API route lists when changing
+  CLI flags, API routes, output shape, supported formats, discovery behavior,
+  conversion behavior, or web UI behavior.
 
 ## Testing Notes
 
