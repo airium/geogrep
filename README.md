@@ -1,112 +1,121 @@
 # geogrep
 
-A unified lookup CLI for geodata ecosystem, supporting multiple geodata formats.
+`geogrep` is a unified lookup tool for geodata databases. It searches IP,
+CIDR, domain, and keyword queries across common geoip and geosite formats, then
+reports exactly which database, source, category, and rule matched.
 
-`geogrep` helps you quickly answer questions like:
-- Which geoip/geosite datasets match this IP or CIDR?
-- What is the geo country/category/ASN for this IP or CIDR?
-- Which geosite entries exactly match this domain?
-- Which geosite entries contain this domain keyword?
+Use it when you need to answer questions such as:
 
-## Why geogrep
+- Which geoip or geosite datasets match this IP, CIDR, domain, or keyword?
+- What country, category, ASN-like entry, or rule produced the match?
+- Do different upstream geodata formats agree for the same lookup?
+- Can I expose the same lookup engine through a browser or HTTP API?
 
-There are many geodata formats, but the lookup tooling is often format-specific.
-`geogrep` scans all such datasets in one pass and reports exact match provenance:
-- database file or grouped database folder
-- matched sub-entry (country/category/ASN-like identity)
-- exact rule or network CIDR that produced the match
+## Highlights
 
-## Features
+- Unified CLI lookup across geoip and geosite-style databases.
+- Automatic input classification for IP, CIDR, domain, and keyword values.
+- Explicit type forcing with `-4`, `-6`, `-d`, and `-k`.
+- Batch lookup while preserving input order.
+- Structured JSON export for automation.
+- Directory-as-database grouping for fragmented rule collections.
+- Built-in `web` service with HTTP API, OpenAPI document, share redirects, and
+  embedded static UI.
+- Kumo-inspired embedded web UI with compact controls, result metrics, match
+  rows, copy actions, and raw JSON inspection.
+- Security-hardened static file serving and API responses.
+- Native Linux/macOS build plus Windows amd64 release target.
 
-- Unified lookup across geoip and geosite-style databases
-- Input auto-detection for IP, CIDR, domain, and keyword
-- Explicit type forcing with `-4`, `-6`, `-d`, `-k`
-- Git-like subcommands: `find`, `web`, `version`
-- Batch lookups in one command while preserving input order
-- Concurrent processing for speed
-- Structured JSON export via `--json`
-- Verbose levels via `-v/--verbose` (`level >= 1` enables explicit no-match reporting)
-- Directory-as-database mode for fragmented datasets
-- Built-in web interface and HTTP API for browser and service use
+For a fuller feature map, see [FEATURES.md](FEATURES.md).
 
-## Usage examples
+## Quick Start
 
-You should first prepare some databases at <dir/to/db> or just under the current directory. Then you can run commands like:
+Prepare a directory of geodata files, then run:
 
 ```bash
-# Domain lookup (assume databases at the current directory)
+# Search databases in the current directory.
 ./geogrep find google.com
 
-# Keyword lookup (explicit)
-./geogrep find -db <dir/to/db> -k google
+# Search a prepared database directory.
+./geogrep find -db <dir/to/db> google.com
 
-# Lookup in only one specific database file
+# Search one database file only.
 ./geogrep find -db <dir/to/db>/geosite.dat google.com
 
-# Mixed explicit inputs with JSON export
-./geogrep find -db <dir/to/db> -v -4 1.1.1.1 -6 2404:6800:4008::200e -d google.com -k ads \
-  --json ./result.json
+# Force query types.
+./geogrep find -db <dir/to/db> -4 1.1.1.1 -6 2606:4700:4700::1111 -d google.com -k ads
 
-# Auto detection for mixed positional inputs
+# Mix auto-detected positional inputs.
 ./geogrep find -db <dir/to/db> 1.1.1.1 1.1.1.0/24 google.com google
 
-# Print binary version information
-./geogrep version
+# Export structured results.
+./geogrep find -db <dir/to/db> -v google.com --json ./result.json
 
-# Start web service with embedded UI
+# Print binary version metadata.
+./geogrep version
+```
+
+Start the web UI and API:
+
+```bash
+# Listen on all interfaces, useful for LAN development.
 ./geogrep web -db <dir/to/db> -l 0.0.0.0:8080
 
-# API-only mode (no UI routes)
+# API-only mode disables UI routes.
 ./geogrep web -db <dir/to/db> --api-only
 
-# Override embedded UI with a custom static directory
+# Use a custom static UI directory instead of the embedded UI.
 ./geogrep web -db <dir/to/db> --webui ./my-webui
 ```
 
-## CLI
+## CLI Reference
 
 ```text
-geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db DB_DIR|DB_FILE] \
-  [-4 IPv4/CIDR] [-6 IPv6/CIDR6] [-d DOMAIN] [-k KEYWORD] \
-  IPv4/CIDR/IPv6/CIDR6/DOMAIN/KEYWORD [...]
+geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db|--database DB_DIR|DB_FILE] \
+  [-4 IPv4_OR_CIDR] [-6 IPv6_OR_CIDR6] [-d DOMAIN] [-k KEYWORD] \
+  [IP_OR_CIDR_OR_DOMAIN_OR_KEYWORD ...]
 
-geogrep web [-db DB_DIR|DB_FILE] [-l|--listen IP:PORT] [--webui PATH] [--api-only] \
-  [-v|--verbose[=N]]
+geogrep web [-db|--database DB_DIR|DB_FILE] [-l|--listen IP:PORT] [--webui PATH] \
+  [--api-only] [-v|--verbose[=N]]
 
 geogrep version
 ```
 
-- `-db PATH`, `--database PATH`: Database root directory or single database file path.
-  - If omitted, geogrep scans current directory.
-  - If nothing supported is found, it falls back to executable directory.
-- `--json PATH`: Export structured results to JSON.
-- `-v`, `--verbose`, `--verbose=N`: Increase verbosity for `find`.
-  - Verbose level `>= 1` enables explicit per-input x per-database no-match reporting.
-- `-4 VALUE`: Force input to IPv4/CIDR4.
-- `-6 VALUE`: Force input to IPv6/CIDR6.
-- `-d VALUE`: Force input to domain. This is strict and rejects non-domain values.
-- `-k VALUE`: Force input to keyword.
-- `-l`, `--listen`: Listen address for `web` (default: `0.0.0.0:8080`).
-- `--webui PATH`: Use custom static files directory instead of embedded UI.
-- `--api-only`: Disable UI routes and serve only API endpoints.
+Options:
 
-## Web and API
+- `-db PATH`, `--database PATH`: database root directory or single database
+  file.
+  If omitted, `geogrep` scans the current directory. If that yields no
+  supported files, it falls back to the executable directory.
+- `--json PATH`: write structured JSON output.
+- `-v`, `--verbose`, `--verbose=N`: increase verbosity. Level `>= 1` enables
+  explicit per-database no-match records.
+- `-4 VALUE`: force IPv4 or IPv4 CIDR parsing.
+- `-6 VALUE`: force IPv6 or IPv6 CIDR parsing.
+- `-d VALUE`: force domain parsing. Non-domain input is rejected; use `-k` for
+  keyword searches.
+- `-k VALUE`: force keyword parsing.
+- `-l`, `--listen IP:PORT`: listen address for `web` (default
+  `0.0.0.0:8080`).
+- `--webui PATH`: serve static UI files from a directory instead of the embedded
+  UI.
+- `--api-only`: serve only API endpoints.
 
-`geogrep web` loads the databases once, then serves lookup APIs over HTTP.
+## Web UI and API
 
-API endpoints:
+`geogrep web` loads databases once at startup, then serves the same lookup
+engine over HTTP.
+
+Routes:
+
 - `GET /health`
 - `GET /openapi.json`
-- `GET /api/find/auto/<any>`
+- `GET /api/find/auto/<value>`
 - `GET /api/find/ipv4/<IP_or_CIDR>`
 - `GET /api/find/ipv6/<IP_or_CIDR>`
 - `GET /api/find/domain/<domain>`
 - `GET /api/find/keyword/<keyword>`
-
-Built-in UI behavior:
-- Root `/` serves embedded static web UI (unless `--api-only` is used).
-- Share links like `/find/auto/google.com` redirect to `/` with query parameters.
-- The UI auto-runs lookup when opened from redirected share links.
+- `GET /find/<type>/<value>` redirects to the UI with query parameters.
 
 Examples:
 
@@ -118,89 +127,117 @@ curl "http://127.0.0.1:8080/api/find/domain/google.com"
 curl "http://127.0.0.1:8080/api/find/ipv4/1.1.1.0/24"
 ```
 
-## Supported formats
+Built-in UI behavior:
 
-Top-level files and direct child files under `DB_DIR` are supported.
+- Root `/` serves the embedded static UI unless `--api-only` is set.
+- The UI can search all API modes, copy share/API URLs, expand long match
+  groups, and inspect the raw JSON response.
+- Share redirects auto-run the lookup when opened in a browser.
+- The embedded UI is dependency-free and lives in
+  [internal/geogrep/webui/index.html](internal/geogrep/webui/index.html).
 
-- `mmdb` and `metadb` (GeoIP-like lookups)
-- `dat` (V2Ray/Xray protobuf geoip/geosite)
-- `db`
-  - MMDB-compatible databases
-  - singgeo geosite binary databases (for example `geosite.db`)
-  - fallback attempts for `dat`, `srs`, `mrs`
-- `srs` (sing-box ruleset binary)
-- `mrs` (mihomo ruleset binary; domain and ipcidr behaviors)
-- `json`
-- `yaml` / `yml`
-- `list` / `txt`
+## Supported Formats
 
+Top-level files under `DB_DIR` and direct child files inside grouped database
+folders are supported.
 
-### Input behavior
+- `.mmdb`, `.metadb`: MMDB-compatible GeoIP lookups.
+- `.dat`: V2Ray/Xray protobuf geoip/geosite data.
+- `.db`: MMDB-compatible databases, singgeo geosite binary databases, and
+  fallback attempts for `.dat`, `.srs`, and `.mrs` payloads.
+- `.srs`: sing-box binary rule sets.
+- `.mrs`: mihomo binary rule sets for supported domain and IP CIDR behavior.
+- `.json`: sing-box-style rule sets, `payload`/`rules` lists, or string arrays.
+- `.yaml`, `.yml`: same supported shapes as JSON.
+- `.list`, `.txt`: text rules such as `DOMAIN`, `DOMAIN-SUFFIX`,
+  `DOMAIN-KEYWORD`, `DOMAIN-REGEX`, `DOMAIN-WILDCARD`, `IP-CIDR`, and plain
+  domain/prefix/keyword lines.
+
+## Input and Matching Semantics
 
 Automatic classification order:
+
 1. IP address
-2. CIDR
+2. CIDR prefix
 3. domain
 4. keyword fallback
 
-Forced flags override auto-detection.
+Matching behavior:
 
-## Matching semantics
+- IP queries match geoip prefixes or MMDB networks that contain the IP.
+- CIDR queries match overlapping prefixes or networks.
+- Domain queries match exact, suffix, keyword, regex, wildcard, and
+  AdGuard-like domain rules where supported by the source format.
+- Keyword queries match rule text or normalized rule value. They do not match
+  solely by sub-entry/category name.
 
-- IP query:
-  - matches geoip prefixes containing the IP
-  - matches MMDB network containing the IP
-- CIDR query:
-  - matches any overlapping (intersecting) prefix/network
-- Domain query:
-  - exact, suffix, keyword, regex, wildcard, adguard-like forms (format dependent)
-- Keyword query:
-  - matches only when the keyword appears in the rule text or rule value
-  - does not match only by sub-entry name
+## Database Discovery
 
-## Database discovery model
+When `-db` points to a directory:
 
-Given `DB_DIR`:
-- all supported files directly under `DB_DIR` are treated as standalone databases
-- each direct child folder is treated as one grouped database
-  - supported files directly inside the child folder are loaded as grouped sources
-  - output source path appears as `folder/file.ext`
+- Supported files directly under that directory become standalone databases.
+- Each direct child directory becomes one grouped database.
+- Supported files directly inside a child directory become grouped sources.
+- Nested directories below a grouped database are not scanned.
 
-Given `DB_FILE` (when `-db` points to a file):
-- only that single file is used as the lookup database source
+When `-db` points to a file:
+
+- Only that single supported file is loaded.
 
 ## Output
 
-### Stdout
+Stdout output includes, for each input:
 
-For each input:
-- matched databases and match counts
-- each match line includes source/database, format, category, and matched rule
-  - for grouped folder sources, filename is always used as category
-- optional no-match lines when verbose level is `>= 1`
+- the normalized query kind
+- each matched database and match count
+- match lines formatted as `source | format | category | rule`
+- optional no-match lines when verbosity is enabled
 
-### Web UI
+JSON export includes:
 
-- result card title shows database and total match count
-- per-match lines show `category | rule` for readability (database and format are omitted there)
-
-### JSON export
-
-When `--json <path/to/output.json>` is provided, geogrep writes:
-- metadata block (time, db root, query count, and no-match reporting mode)
+- metadata (`generated_at`, database count, query count, no-match reporting
+  mode, executable-directory fallback flag)
 - per-input results in original input order
-- per-database matches or no-match records
-- loader diagnostics (for partial parse failures)
+- per-database matches and optional no-match records
+- loader diagnostics from partial parse failures
 
-## Project layout
+API responses use the same export document shape but intentionally omit database
+root paths and loader diagnostics to avoid leaking local runtime details.
+
+## Build and Test
+
+```bash
+# Build with default go build metadata.
+go build -o geogrep ./cmd/geogrep
+
+# Build with VERSION, git commit, and UTC build timestamp embedded.
+make build
+
+# Build native binary plus Windows amd64 binary.
+make all
+
+# Run tests.
+go test ./...
+
+# Format Go code.
+make fmt
+
+# Print the release version.
+make version
+```
+
+## Project Layout
 
 ```text
 .
 ├── cmd/geogrep/             # CLI entrypoint
-├── internal/geogrep/        # Core implementation, parsers, matcher, reporting
+├── internal/geogrep/        # Core implementation, parsers, matcher, reporting, web server
+├── internal/geogrep/webui/  # Embedded static web UI
 ├── .github/workflows/       # CI workflow
 ├── VERSION                  # Current release version
 ├── CHANGELOG.md             # Release notes
+├── FEATURES.md              # Feature catalog and history summary
+├── AGENTS.md                # Contributor/agent working notes
 ├── README.md
 ├── CONTRIBUTING.md
 ├── CONTRIBUTORS.md
@@ -208,48 +245,32 @@ When `--json <path/to/output.json>` is provided, geogrep writes:
 └── Makefile
 ```
 
-## Build and test
+## Versioning
 
-```bash
-# Build
-go build -o geogrep ./cmd/geogrep
+The release version is tracked in [VERSION](VERSION). Release builds embed:
 
-# Build with embedded release metadata from VERSION
-make build
+- version
+- short git commit
+- UTC build timestamp
 
-# Build native + Windows amd64 release binaries
-make all
-
-# Test
-go test ./...
-
-# Print current release version from VERSION file
-make version
-```
-
-## Versioning and release metadata
-
-- The release version is tracked in [VERSION](VERSION).
-- Build-time metadata is embedded into the binary:
-  - version
-  - commit
-  - UTC build timestamp
-- You can inspect binary metadata with:
+Inspect metadata with:
 
 ```bash
 ./geogrep version
 ```
 
-## Known limitations
+## Known Limitations
 
-- MRS classical behavior is not decoded yet.
-- Rule semantics vary by upstream format and may not be perfectly identical to every runtime core.
-- Very large keyword searches can produce large outputs by design.
+- MRS classical behavior is not fully decoded.
+- Rule behavior can vary across upstream runtimes and formats.
+- Large keyword searches may intentionally produce large outputs.
+- Database discovery scans only the configured root and one grouped directory
+  level.
 
 ## License
 
-This repository is distributed under GNU GPL v3.0 or later.
-See [LICENSE](LICENSE).
+This repository is distributed under GNU GPL v3.0 or later. See
+[LICENSE](LICENSE).
 
 ## Contributors
 

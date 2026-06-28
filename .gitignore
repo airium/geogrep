@@ -18,3 +18,6 @@ coverage.out
 
 # Generated lookup exports (optional)
 *.geogrep.json
+
+# geo databases for development and testing
+db/
