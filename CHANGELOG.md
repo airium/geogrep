@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
   writes output through temporary files before replacing the target.
 - `.dat` loading now rejects protobuf payloads that contain entries but no
   usable GeoIP or GeoSite rules.
+- Text, JSON, and YAML loaders now report invalid typed CIDR and regex rules,
+  and `convert` rejects inputs that would otherwise produce partial output.
 - Agent and contributor guidance now points maintainers to the shared
   development workflow and one-fix-per-commit expectations.
 

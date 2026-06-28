@@ -59,6 +59,9 @@ func loadDatabases(discovery DiscoveryResult) ([]LoadedDatabase, []Diagnostic) {
 			if len(sourceDiagnostics) > 0 {
 				diagnostics = append(diagnostics, sourceDiagnostics...)
 			}
+			if len(loadedSource.Warnings) > 0 {
+				diagnostics = append(diagnostics, loadedSource.Warnings...)
+			}
 			ldb.Sources = append(ldb.Sources, loadedSource)
 		}
 		loaded = append(loaded, ldb)
@@ -347,8 +350,9 @@ func loadDAT(source *LoadedSource) error {
 				if ruleKind == "" || value == "" {
 					continue
 				}
-				appendDomainRule(source, sub, fmt.Sprintf("%s:%s", ruleKind, value), ruleKind, value)
-				loadedRuleCount++
+				if appendDomainRule(source, sub, fmt.Sprintf("%s:%s", ruleKind, value), ruleKind, value) {
+					loadedRuleCount++
+				}
 			}
 		}
 	}
@@ -369,27 +373,37 @@ func loadJSONRules(source *LoadedSource) error {
 
 	var set singRuleSet
 	if err := json.Unmarshal(bytes, &set); err == nil && len(set.Rules) > 0 {
+		var warnings []Diagnostic
 		for i, rule := range set.Rules {
-			extractSingRuleNode(source, rule, fmt.Sprintf("rule[%d]", i))
+			warnings = append(warnings, extractSingRuleNode(source, rule, fmt.Sprintf("rule[%d]", i))...)
 		}
+		source.Warnings = append(source.Warnings, warnings...)
 		source.Format = "json"
 		return nil
 	}
 
 	var payload listPayload
 	if err := json.Unmarshal(bytes, &payload); err == nil && (len(payload.Payload) > 0 || len(payload.Rules) > 0) {
+		var warnings []Diagnostic
 		for _, line := range append(payload.Payload, payload.Rules...) {
-			parseTextLine(source, line, "")
+			if diag, ok := parseTextLine(source, line, ""); ok {
+				warnings = append(warnings, diag)
+			}
 		}
+		source.Warnings = append(source.Warnings, warnings...)
 		source.Format = "json"
 		return nil
 	}
 
 	var arr []string
 	if err := json.Unmarshal(bytes, &arr); err == nil && len(arr) > 0 {
+		var warnings []Diagnostic
 		for _, line := range arr {
-			parseTextLine(source, line, "")
+			if diag, ok := parseTextLine(source, line, ""); ok {
+				warnings = append(warnings, diag)
+			}
 		}
+		source.Warnings = append(source.Warnings, warnings...)
 		source.Format = "json"
 		return nil
 	}
@@ -405,27 +419,37 @@ func loadYAMLRules(source *LoadedSource) error {
 
 	var set singRuleSet
 	if err := yaml.Unmarshal(bytes, &set); err == nil && len(set.Rules) > 0 {
+		var warnings []Diagnostic
 		for i, rule := range set.Rules {
-			extractSingRuleNode(source, rule, fmt.Sprintf("rule[%d]", i))
+			warnings = append(warnings, extractSingRuleNode(source, rule, fmt.Sprintf("rule[%d]", i))...)
 		}
+		source.Warnings = append(source.Warnings, warnings...)
 		source.Format = "yaml"
 		return nil
 	}
 
 	var payload listPayload
 	if err := yaml.Unmarshal(bytes, &payload); err == nil && (len(payload.Payload) > 0 || len(payload.Rules) > 0) {
+		var warnings []Diagnostic
 		for _, line := range append(payload.Payload, payload.Rules...) {
-			parseTextLine(source, line, "")
+			if diag, ok := parseTextLine(source, line, ""); ok {
+				warnings = append(warnings, diag)
+			}
 		}
+		source.Warnings = append(source.Warnings, warnings...)
 		source.Format = "yaml"
 		return nil
 	}
 
 	var arr []string
 	if err := yaml.Unmarshal(bytes, &arr); err == nil && len(arr) > 0 {
+		var warnings []Diagnostic
 		for _, line := range arr {
-			parseTextLine(source, line, "")
+			if diag, ok := parseTextLine(source, line, ""); ok {
+				warnings = append(warnings, diag)
+			}
 		}
+		source.Warnings = append(source.Warnings, warnings...)
 		source.Format = "yaml"
 		return nil
 	}
@@ -439,14 +463,19 @@ func loadTextRules(source *LoadedSource) error {
 		return err
 	}
 	lines := strings.Split(string(bytes), "\n")
+	var warnings []Diagnostic
 	for _, line := range lines {
-		parseTextLine(source, line, "")
+		if diag, ok := parseTextLine(source, line, ""); ok {
+			warnings = append(warnings, diag)
+		}
 	}
+	source.Warnings = append(source.Warnings, warnings...)
 	source.Format = strings.TrimPrefix(strings.ToLower(filepath.Ext(source.Path)), ".")
 	return nil
 }
 
-func extractSingRuleNode(source *LoadedSource, node singRuleNode, sub string) {
+func extractSingRuleNode(source *LoadedSource, node singRuleNode, sub string) []Diagnostic {
+	var diagnostics []Diagnostic
 	if category := strings.TrimSpace(node.Category); category != "" {
 		sub = category
 	}
@@ -471,7 +500,9 @@ func extractSingRuleNode(source *LoadedSource, node singRuleNode, sub string) {
 	for _, expr := range node.DomainRegex {
 		expr = strings.TrimSpace(expr)
 		if expr != "" {
-			appendDomainRule(source, sub, "domain_regex:"+expr, DomainRegex, expr)
+			if !appendDomainRule(source, sub, "domain_regex:"+expr, DomainRegex, expr) {
+				diagnostics = append(diagnostics, Diagnostic{Level: "warning", Scope: source.Display, Message: fmt.Sprintf("%s: invalid domain_regex %q", sub, expr)})
+			}
 		}
 	}
 	for _, wildcard := range node.DomainWildcard {
@@ -489,19 +520,21 @@ func extractSingRuleNode(source *LoadedSource, node singRuleNode, sub string) {
 	for _, cidr := range append(node.IPCIDR, node.SourceCIDR...) {
 		prefix, err := parseFlexiblePrefix(cidr)
 		if err != nil {
+			diagnostics = append(diagnostics, Diagnostic{Level: "warning", Scope: source.Display, Message: fmt.Sprintf("%s: invalid ip_cidr %q", sub, cidr)})
 			continue
 		}
 		source.GeoIPRules = append(source.GeoIPRules, GeoIPRule{SubEntry: sub, Rule: prefix.String(), Prefix: prefix})
 	}
 	for idx, child := range node.Rules {
-		extractSingRuleNode(source, child, fmt.Sprintf("%s/rule[%d]", sub, idx))
+		diagnostics = append(diagnostics, extractSingRuleNode(source, child, fmt.Sprintf("%s/rule[%d]", sub, idx))...)
 	}
+	return diagnostics
 }
 
-func parseTextLine(source *LoadedSource, line, subEntry string) {
+func parseTextLine(source *LoadedSource, line, subEntry string) (Diagnostic, bool) {
 	line = strings.TrimSpace(line)
 	if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") {
-		return
+		return Diagnostic{}, false
 	}
 
 	parts := splitRuleLine(line)
@@ -509,52 +542,56 @@ func parseTextLine(source *LoadedSource, line, subEntry string) {
 		ruleType := strings.ToUpper(strings.TrimSpace(parts[0]))
 		payload := strings.TrimSpace(parts[1])
 		if payload == "" {
-			return
+			return Diagnostic{}, false
 		}
 		switch ruleType {
 		case "DOMAIN":
 			appendDomainRule(source, subEntry, line, DomainExact, strings.ToLower(payload))
-			return
+			return Diagnostic{}, false
 		case "DOMAIN-SUFFIX":
 			appendDomainRule(source, subEntry, line, DomainSuffix, strings.TrimPrefix(strings.ToLower(payload), "."))
-			return
+			return Diagnostic{}, false
 		case "DOMAIN-KEYWORD":
 			appendDomainRule(source, subEntry, line, DomainKeyword, strings.ToLower(payload))
-			return
+			return Diagnostic{}, false
 		case "DOMAIN-REGEX":
-			appendDomainRule(source, subEntry, line, DomainRegex, payload)
-			return
+			if !appendDomainRule(source, subEntry, line, DomainRegex, payload) {
+				return Diagnostic{Level: "warning", Scope: source.Display, Message: fmt.Sprintf("invalid DOMAIN-REGEX %q", payload)}, true
+			}
+			return Diagnostic{}, false
 		case "DOMAIN-WILDCARD":
 			appendDomainRule(source, subEntry, line, DomainWildcard, strings.ToLower(payload))
-			return
+			return Diagnostic{}, false
 		case "IP-CIDR", "IP-CIDR6", "SRC-IP-CIDR", "SRC-IP-CIDR6":
 			prefix, err := parseFlexiblePrefix(payload)
 			if err == nil {
 				source.GeoIPRules = append(source.GeoIPRules, GeoIPRule{SubEntry: subEntry, Rule: line, Prefix: prefix})
+				return Diagnostic{}, false
 			}
-			return
+			return Diagnostic{Level: "warning", Scope: source.Display, Message: fmt.Sprintf("invalid %s %q", ruleType, payload)}, true
 		}
 	}
 
 	if prefix, err := parseFlexiblePrefix(line); err == nil {
 		source.GeoIPRules = append(source.GeoIPRules, GeoIPRule{SubEntry: subEntry, Rule: line, Prefix: prefix})
-		return
+		return Diagnostic{}, false
 	}
 
 	lower := strings.ToLower(line)
 	if strings.HasPrefix(lower, ".") {
 		appendDomainRule(source, subEntry, line, DomainSuffix, strings.TrimPrefix(lower, "."))
-		return
+		return Diagnostic{}, false
 	}
 	if strings.ContainsAny(lower, "*?") {
 		appendDomainRule(source, subEntry, line, DomainWildcard, lower)
-		return
+		return Diagnostic{}, false
 	}
 	if isLikelyDomain(lower) {
 		appendDomainRule(source, subEntry, line, DomainExact, strings.TrimSuffix(lower, "."))
-		return
+		return Diagnostic{}, false
 	}
 	appendDomainRule(source, subEntry, line, DomainKeyword, lower)
+	return Diagnostic{}, false
 }
 
 func splitRuleLine(line string) []string {
@@ -565,7 +602,7 @@ func splitRuleLine(line string) []string {
 	return parts
 }
 
-func appendDomainRule(source *LoadedSource, subEntry, raw string, kind DomainRuleKind, value string) {
+func appendDomainRule(source *LoadedSource, subEntry, raw string, kind DomainRuleKind, value string) bool {
 	r := DomainRule{
 		SubEntry: strings.TrimSpace(subEntry),
 		Rule:     strings.TrimSpace(raw),
@@ -576,11 +613,12 @@ func appendDomainRule(source *LoadedSource, subEntry, raw string, kind DomainRul
 		expr := strings.TrimSpace(value)
 		compiled, err := regexp.Compile(expr)
 		if err != nil {
-			return
+			return false
 		}
 		r.Regex = compiled
 	}
 	source.DomainRule = append(source.DomainRule, r)
+	return true
 }
 
 func parseFlexiblePrefix(value string) (netip.Prefix, error) {

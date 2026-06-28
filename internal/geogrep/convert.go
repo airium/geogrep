@@ -121,12 +121,12 @@ func convertDatabases(cfg CLIConfig) (convertSummary, error) {
 
 	errorDiagnostics := make([]string, 0)
 	for _, diag := range diagnostics {
-		if strings.EqualFold(diag.Level, "error") {
+		if strings.EqualFold(diag.Level, "error") || strings.EqualFold(diag.Level, "warning") {
 			errorDiagnostics = append(errorDiagnostics, fmt.Sprintf("%s: %s", diag.Scope, diag.Message))
 		}
 	}
 	if len(errorDiagnostics) > 0 {
-		return convertSummary{}, fmt.Errorf("failed to load input: %s", strings.Join(errorDiagnostics, "; "))
+		return convertSummary{}, fmt.Errorf("failed to load clean input: %s", strings.Join(errorDiagnostics, "; "))
 	}
 
 	rules, sourceCount, err := collectConvertRules(databases)
