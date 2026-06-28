@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	domainpkg "github.com/sagernet/sing/common/domain"
 )
 
 func runLookups(queries []Query, databases []LoadedDatabase, reportEmpty bool) []QueryResult {
@@ -154,21 +156,13 @@ func adGuardRuleMatch(rule, domain string) bool {
 	if rule == "" || domain == "" {
 		return false
 	}
-
-	if strings.HasPrefix(rule, "||") {
-		host := strings.TrimPrefix(rule, "||")
-		host = strings.TrimSuffix(host, "^")
-		host = strings.TrimSuffix(host, "/")
-		return domain == host || strings.HasSuffix(domain, "."+host)
+	if strings.HasPrefix(rule, "@@") {
+		return false
 	}
-	rule = strings.TrimPrefix(rule, "|")
-	if strings.ContainsAny(rule, "*^") {
-		pattern := strings.ReplaceAll(rule, "^", "*")
-		pattern = strings.ReplaceAll(pattern, "||", "*")
-		matched, err := filepath.Match(pattern, domain)
-		return err == nil && matched
+	if idx := strings.IndexByte(rule, '$'); idx >= 0 {
+		rule = strings.TrimSpace(rule[:idx])
 	}
-	return strings.Contains(domain, rule)
+	return domainpkg.NewAdGuardMatcher([]string{rule}).Match(domain)
 }
 
 func matchMMDBIP(query Query, dbName string, source LoadedSource) []MatchRecord {

@@ -172,3 +172,5 @@ The project history is compact and linear:
   inspection.
 - Conversion is best-effort across target format capabilities and rejects
   targets that cannot represent the loaded rule mix.
+- AdGuard exception rules are not modeled as allow rules during positive match
+  reporting.

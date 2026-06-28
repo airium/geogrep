@@ -325,6 +325,7 @@ Inspect metadata with:
 
 - MRS classical behavior is not fully decoded.
 - Rule behavior can vary across upstream runtimes and formats.
+- AdGuard exception rules are ignored during positive match reporting.
 - Large keyword searches may intentionally produce large outputs.
 - Database discovery scans only the configured root and one grouped directory
   level.

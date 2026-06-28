@@ -20,6 +20,8 @@ All notable changes to this project will be documented in this file.
   usable GeoIP or GeoSite rules.
 - Text, JSON, and YAML loaders now report invalid typed CIDR and regex rules,
   and `convert` rejects inputs that would otherwise produce partial output.
+- AdGuard-style domain matching now uses the sing-domain matcher for supported
+  rule syntax and ignores exception rules during positive match reporting.
 - Agent and contributor guidance now points maintainers to the shared
   development workflow and one-fix-per-commit expectations.
 
