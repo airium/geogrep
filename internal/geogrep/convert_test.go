@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -188,6 +189,42 @@ func TestConvertRejectsUnsupportedTargetDomainKind(t *testing.T) {
 	_, err := convertDatabases(CLIConfig{ConvertIn: in, ConvertOut: out})
 	if err == nil {
 		t.Fatal("expected unsupported domain kind error")
+	}
+}
+
+func TestConvertRejectsOutputOverwritingInputFile(t *testing.T) {
+	tmp := t.TempDir()
+	in := filepath.Join(tmp, "rules.list")
+	writeTestFile(t, in, "DOMAIN,example.com\n")
+
+	_, err := convertDatabases(CLIConfig{ConvertIn: in, ConvertOut: in, ConvertTo: "json"})
+	if err == nil {
+		t.Fatal("expected output overwrite rejection")
+	}
+	if !strings.Contains(err.Error(), "must not overwrite input source") {
+		t.Fatalf("error=%q want overwrite rejection", err)
+	}
+	content, err := os.ReadFile(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "DOMAIN,example.com\n" {
+		t.Fatalf("input file was modified: %q", content)
+	}
+}
+
+func TestConvertRejectsExistingOutputInsideInputDirectory(t *testing.T) {
+	tmp := t.TempDir()
+	writeTestFile(t, filepath.Join(tmp, "rules.list"), "DOMAIN,example.com\n")
+	out := filepath.Join(tmp, "rules.json")
+	writeTestFile(t, out, `{"version":1,"rules":[{"category":"old","domain":["old.example"]}]}`)
+
+	_, err := convertDatabases(CLIConfig{ConvertIn: tmp, ConvertOut: out})
+	if err == nil {
+		t.Fatal("expected output source overlap rejection")
+	}
+	if !strings.Contains(err.Error(), "must not overwrite input source") {
+		t.Fatalf("error=%q want source overlap rejection", err)
 	}
 }
 

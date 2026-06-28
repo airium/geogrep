@@ -108,6 +108,13 @@ func convertDatabases(cfg CLIConfig) (convertSummary, error) {
 	if err != nil {
 		return convertSummary{}, err
 	}
+	outputPath, err := filepath.Abs(cfg.ConvertOut)
+	if err != nil {
+		return convertSummary{}, fmt.Errorf("resolve output path: %w", err)
+	}
+	if err := validateConvertOutputPath(discovery, outputPath); err != nil {
+		return convertSummary{}, err
+	}
 
 	databases, diagnostics := loadDatabases(discovery)
 	defer closeDatabases(databases)
@@ -130,11 +137,11 @@ func convertDatabases(cfg CLIConfig) (convertSummary, error) {
 		return convertSummary{}, errors.New("input contains no convertible geoip or domain rules")
 	}
 
-	targetFormat, err := resolveConvertFormat(cfg.ConvertTo, cfg.ConvertOut)
+	targetFormat, err := resolveConvertFormat(cfg.ConvertTo, outputPath)
 	if err != nil {
 		return convertSummary{}, err
 	}
-	if err := writeConvertedRules(cfg.ConvertOut, targetFormat, rules); err != nil {
+	if err := writeConvertedRules(outputPath, targetFormat, rules); err != nil {
 		return convertSummary{}, err
 	}
 	return convertSummary{
@@ -144,6 +151,22 @@ func convertDatabases(cfg CLIConfig) (convertSummary, error) {
 		GeoIPCount:  len(rules.GeoIP),
 		DomainCount: len(rules.Domains),
 	}, nil
+}
+
+func validateConvertOutputPath(discovery DiscoveryResult, outputPath string) error {
+	outputClean := filepath.Clean(outputPath)
+	for _, db := range discovery.Databases {
+		for _, source := range db.Sources {
+			sourcePath, err := filepath.Abs(source.Path)
+			if err != nil {
+				return fmt.Errorf("resolve input source path: %w", err)
+			}
+			if filepath.Clean(sourcePath) == outputClean {
+				return fmt.Errorf("convert output path must not overwrite input source: %s", outputPath)
+			}
+		}
+	}
+	return nil
 }
 
 func collectConvertRules(databases []LoadedDatabase) (convertRuleSet, int, error) {
@@ -290,7 +313,7 @@ func writeConvertJSON(path string, rules convertRuleSet) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0o644)
+	return writeConvertedFile(path, data, 0o644)
 }
 
 func writeConvertYAML(path string, rules convertRuleSet) error {
@@ -298,7 +321,7 @@ func writeConvertYAML(path string, rules convertRuleSet) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return writeConvertedFile(path, data, 0o644)
 }
 
 func buildConvertDocument(rules convertRuleSet) convertDocument {
@@ -387,7 +410,7 @@ func writeConvertText(path string, rules convertRuleSet) error {
 	if content != "" {
 		content += "\n"
 	}
-	return os.WriteFile(path, []byte(content), 0o644)
+	return writeConvertedFile(path, []byte(content), 0o644)
 }
 
 func writeConvertDAT(path string, rules convertRuleSet) error {
@@ -399,7 +422,7 @@ func writeConvertDAT(path string, rules convertRuleSet) error {
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(path, data, 0o644)
+		return writeConvertedFile(path, data, 0o644)
 	}
 	if len(rules.Domains) > 0 {
 		if err := validateConvertDomainKinds(rules.Domains, "dat", DomainExact, DomainSuffix, DomainKeyword, DomainRegex); err != nil {
@@ -413,7 +436,7 @@ func writeConvertDAT(path string, rules convertRuleSet) error {
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(path, data, 0o644)
+		return writeConvertedFile(path, data, 0o644)
 	}
 	return errors.New("no rules to write")
 }
@@ -592,7 +615,7 @@ func writeSingGeoFile(path string, grouped map[string][]singGeoWriteItem) error 
 	}
 
 	content := append(metadata.Bytes(), payload.Bytes()...)
-	return os.WriteFile(path, content, 0o644)
+	return writeConvertedFile(path, content, 0o644)
 }
 
 func writeConvertSRS(path string, rules convertRuleSet) error {
@@ -604,11 +627,12 @@ func writeConvertSRS(path string, rules convertRuleSet) error {
 		return errors.New("no SRS-compatible rules to write")
 	}
 
-	file, err := os.Create(path)
+	file, tmpPath, err := createConvertedTempFile(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	committed := false
+	defer cleanupConvertedTempFile(file, tmpPath, &committed)
 
 	if _, err := file.Write(srsMagic[:]); err != nil {
 		return err
@@ -630,7 +654,17 @@ func writeConvertSRS(path string, rules convertRuleSet) error {
 		_ = compressed.Close()
 		return err
 	}
-	return compressed.Close()
+	if err := compressed.Close(); err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 func buildSRSWriteRule(rules convertRuleSet) srsWriteRule {
@@ -831,17 +865,17 @@ func writeIPCIDRMRS(path string, rules []GeoIPRule) error {
 }
 
 func writeMRS(path string, behavior byte, count int64, writePayload func(io.Writer) error) error {
-	file, err := os.Create(path)
+	file, tmpPath, err := createConvertedTempFile(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	committed := false
+	defer cleanupConvertedTempFile(file, tmpPath, &committed)
 
 	encoder, err := zstd.NewWriter(file)
 	if err != nil {
 		return err
 	}
-	defer encoder.Close()
 
 	if _, err := encoder.Write(mrsMagic[:]); err != nil {
 		return err
@@ -855,7 +889,20 @@ func writeMRS(path string, behavior byte, count int64, writePayload func(io.Writ
 	if err := binary.Write(encoder, binary.BigEndian, int64(0)); err != nil {
 		return err
 	}
-	return writePayload(encoder)
+	if err := writePayload(encoder); err != nil {
+		return err
+	}
+	if err := encoder.Close(); err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 func writeConvertMMDB(path string, rules convertRuleSet) error {
@@ -884,13 +931,65 @@ func writeConvertMMDB(path string, rules convertRuleSet) error {
 			return err
 		}
 	}
-	file, err := os.Create(path)
+	file, tmpPath, err := createConvertedTempFile(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-	_, err = writer.WriteTo(file)
-	return err
+	committed := false
+	defer cleanupConvertedTempFile(file, tmpPath, &committed)
+	if _, err := writer.WriteTo(file); err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	committed = true
+	return nil
+}
+
+func writeConvertedFile(path string, data []byte, perm os.FileMode) error {
+	file, tmpPath, err := createConvertedTempFile(path)
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer cleanupConvertedTempFile(file, tmpPath, &committed)
+	if _, err := file.Write(data); err != nil {
+		return err
+	}
+	if err := file.Chmod(perm); err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	committed = true
+	return nil
+}
+
+func createConvertedTempFile(path string) (*os.File, string, error) {
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+	file, err := os.CreateTemp(dir, "."+base+".tmp-*")
+	if err != nil {
+		return nil, "", err
+	}
+	return file, file.Name(), nil
+}
+
+func cleanupConvertedTempFile(file *os.File, tmpPath string, committed *bool) {
+	if file != nil {
+		_ = file.Close()
+	}
+	if committed == nil || !*committed {
+		_ = os.Remove(tmpPath)
+	}
 }
 
 func normalizeConvertCategory(category, fallback string) string {
