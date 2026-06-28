@@ -35,10 +35,16 @@ go test ./...
 
 ## Commit guidance
 
-Recommended style:
+Follow [DEVELOPMENT.md](DEVELOPMENT.md). Recommended style:
 
 ```text
 type(scope): summary
+```
+
+Use signed commits when possible:
+
+```bash
+git commit -S
 ```
 
 Examples:

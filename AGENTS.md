@@ -26,6 +26,7 @@ Important paths:
 - `internal/geogrep/webui/index.html`: embedded static UI.
 - `VERSION`: release version used by build metadata.
 - `Makefile`: build/test/release helpers.
+- `DEVELOPMENT.md`: development workflow and commit-message guidance.
 
 ## Current Behavior to Preserve
 
@@ -157,6 +158,15 @@ When bumping a release:
 - Add a `CHANGELOG.md` entry.
 - Run `go test ./...`.
 - Use `make build` or `make all` to embed version, commit, and build date.
+
+## Commit Guidance
+
+- Follow [DEVELOPMENT.md](DEVELOPMENT.md) for Conventional Commit formatting.
+- Use signed commits with `git commit -S`.
+- Keep one fix per commit when requested, including the code, focused tests, and
+  related documentation or changelog entry for that fix.
+- If GPG signing asks for a passphrase, stop and ask the user to unlock the key
+  before retrying.
 
 ## Style
 

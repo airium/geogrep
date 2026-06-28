@@ -299,6 +299,7 @@ make version
 ├── CHANGELOG.md             # Release notes
 ├── FEATURES.md              # Feature catalog and history summary
 ├── AGENTS.md                # Contributor/agent working notes
+├── DEVELOPMENT.md           # Development workflow and commit guidance
 ├── README.md
 ├── CONTRIBUTING.md
 ├── CONTRIBUTORS.md

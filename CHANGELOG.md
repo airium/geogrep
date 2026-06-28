@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `DEVELOPMENT.md` with Conventional Commit and signed-commit guidance.
+
+### Changed
+
+- Agent and contributor guidance now points maintainers to the shared
+  development workflow and one-fix-per-commit expectations.
+
 ## [0.3.0] - 2026-06-28
 
 ### Added
