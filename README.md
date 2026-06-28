@@ -18,6 +18,8 @@ Use it when you need to answer questions such as:
 - Explicit type forcing with `-4`, `-6`, `-d`, and `-k`.
 - Batch lookup while preserving input order.
 - Structured JSON export for automation.
+- `convert` subcommand for transforming loaded rule data between supported
+  geodata formats.
 - Directory-as-database grouping for fragmented rule collections.
 - Built-in `web` service with HTTP API, OpenAPI document, share redirects, and
   embedded static UI.
@@ -51,6 +53,12 @@ Prepare a directory of geodata files, then run:
 # Export structured results.
 ./geogrep find -db <dir/to/db> -v google.com --json ./result.json
 
+# Convert a rule file to another supported format.
+./geogrep convert -i ./rules.list -o ./rules.json
+
+# Convert with an explicit output format.
+./geogrep convert -i ./geosite.dat -o ./geosite.db --to singgeo
+
 # Print binary version metadata.
 ./geogrep version
 ```
@@ -75,6 +83,8 @@ geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db|--database DB_DIR|DB_F
   [-4 IPv4_OR_CIDR] [-6 IPv6_OR_CIDR6] [-d DOMAIN] [-k KEYWORD] \
   [IP_OR_CIDR_OR_DOMAIN_OR_KEYWORD ...]
 
+geogrep convert -i INPUT_PATH -o OUTPUT_PATH [--to FORMAT]
+
 geogrep web [-db|--database DB_DIR|DB_FILE] [-l|--listen IP:PORT] [--webui PATH] \
   [--api-only] [-v|--verbose[=N]]
 
@@ -95,6 +105,10 @@ Options:
 - `-d VALUE`: force domain parsing. Non-domain input is rejected; use `-k` for
   keyword searches.
 - `-k VALUE`: force keyword parsing.
+- `-i PATH`, `--input PATH`: input file or directory for `convert`.
+- `-o PATH`, `--output PATH`: output file for `convert`.
+- `--to FORMAT`: output format for `convert`. If omitted, the format is
+  inferred from the output extension.
 - `-l`, `--listen IP:PORT`: listen address for `web` (default
   `0.0.0.0:8080`).
 - `--webui PATH`: serve static UI files from a directory instead of the embedded
@@ -135,6 +149,53 @@ Built-in UI behavior:
 - Share redirects auto-run the lookup when opened in a browser.
 - The embedded UI is dependency-free and lives in
   [internal/geogrep/webui/index.html](internal/geogrep/webui/index.html).
+
+## Conversion
+
+`geogrep convert` loads the same file and directory inputs as lookup, normalizes
+their GeoIP and domain rules, and writes a new geodata file.
+
+Output formats:
+
+- `json`, `yaml`: geogrep/sing-box-style source rule sets with preserved
+  `category` values.
+- `list`, `txt`: plain rule lines.
+- `dat`: V2Ray/Xray GeoIP or GeoSite protobuf. Mixed IP and domain output is
+  rejected because the upstream schemas are separate.
+- `singgeo`: singgeo geosite `.db` output for exact, suffix, keyword, and regex
+  domain rules.
+- `srs`: sing-box binary rule set output for IP CIDR plus exact, suffix,
+  keyword, regex, and AdGuard domain rules.
+- `mrs`: mihomo binary rule set output. Domain and IP CIDR behaviors must be
+  written separately.
+- `mmdb`, `metadb`: generated GeoIP MMDB output for IP/CIDR rules.
+
+Targets reject rule kinds they cannot encode instead of silently writing partial
+data.
+
+Compatibility matrix:
+
+| Input format | To JSON/YAML | To list/txt | To `.dat` | To singgeo `.db` | To `.srs` | To `.mrs` | To `.mmdb`/`.metadb` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `.json`, `.yaml`, `.yml` | Yes | Yes | GeoIP-only or GeoSite-only; exact/suffix/keyword/regex domains | Domain-only; exact/suffix/keyword/regex domains | IP CIDR plus exact/suffix/keyword/regex/AdGuard domains | Domain-only exact/suffix/wildcard or IP CIDR-only | IP/CIDR-only |
+| `.list`, `.txt` | Yes | Yes | GeoIP-only or GeoSite-only; exact/suffix/keyword/regex domains | Domain-only; exact/suffix/keyword/regex domains | IP CIDR plus exact/suffix/keyword/regex/AdGuard domains | Domain-only exact/suffix/wildcard or IP CIDR-only | IP/CIDR-only |
+| `.dat` | Yes | Yes | Same payload family only; GeoIP and GeoSite stay separate | GeoSite/domain-only; exact/suffix/keyword/regex domains | GeoIP CIDR or GeoSite exact/suffix/keyword/regex domains | GeoIP CIDR-only or GeoSite exact/suffix domains | GeoIP/IP-CIDR-only |
+| singgeo `.db` | Yes | Yes | GeoSite/domain-only; exact/suffix/keyword/regex domains | Yes | Exact/suffix/keyword/regex domains | Exact/suffix domains only | No |
+| `.srs` | Yes | Yes | GeoIP-only or GeoSite-only; exact/suffix/keyword/regex domains | Domain-only; exact/suffix/keyword/regex domains | Yes | Domain-only exact/suffix or IP CIDR-only | IP/CIDR-only |
+| `.mrs` | Yes | Yes | GeoIP-only or GeoSite-only; exact/suffix domains | Domain-only; exact/suffix domains | IP CIDR plus exact/suffix domains | Same behavior only; domain and IP CIDR stay separate | IP/CIDR-only |
+| `.mmdb`, `.metadb` | Yes | Yes | GeoIP/IP-CIDR-only | No | IP CIDR only | IP CIDR only | Yes |
+
+`Yes` means all rule kinds currently extracted by `geogrep` for that input are
+representable in the target. Constrained cells list the rule families that can
+be represented; other loaded rule kinds cause conversion to fail.
+
+Examples:
+
+```bash
+./geogrep convert -i ./rules.yaml -o ./rules.srs
+./geogrep convert -i ./geoip.dat -o ./geoip.mmdb
+./geogrep convert -i ./geosite.dat -o ./geosite.db --to singgeo
+```
 
 ## Supported Formats
 

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- `convert` subcommand for converting loaded geodata rule data to JSON, YAML,
+  list/txt, V2Ray/Xray `.dat`, singgeo `.db`, sing-box `.srs`, mihomo `.mrs`,
+  and GeoIP `.mmdb` outputs.
+
+### Changed
+
+- JSON/YAML rule loading now preserves `category` fields and supports
+  `domain_wildcard` and `adguard_domain` rule arrays.
+
 ## [0.2.5] - 2026-04-17
 
 ### Changed
@@ -68,8 +81,6 @@ All notable changes to this project will be documented in this file.
 - CLI flow now uses explicit subcommands: `find`, `web`, `version`.
 - No-match detail output control moved to verbosity levels (`-v/--verbose`) with level >= 1.
 - Database path flags are standardized as `-db` and `--database`.
-
-## [Unreleased]
 
 ## [0.1.0] - 2026-04-15
 

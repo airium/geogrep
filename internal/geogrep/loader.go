@@ -25,14 +25,17 @@ type singRuleSet struct {
 }
 
 type singRuleNode struct {
-	Type        string         `json:"type" yaml:"type"`
-	Domain      []string       `json:"domain" yaml:"domain"`
-	DomainSuf   []string       `json:"domain_suffix" yaml:"domain_suffix"`
-	DomainKey   []string       `json:"domain_keyword" yaml:"domain_keyword"`
-	DomainRegex []string       `json:"domain_regex" yaml:"domain_regex"`
-	IPCIDR      []string       `json:"ip_cidr" yaml:"ip_cidr"`
-	SourceCIDR  []string       `json:"source_ip_cidr" yaml:"source_ip_cidr"`
-	Rules       []singRuleNode `json:"rules" yaml:"rules"`
+	Type           string         `json:"type" yaml:"type"`
+	Category       string         `json:"category" yaml:"category"`
+	Domain         []string       `json:"domain" yaml:"domain"`
+	DomainSuf      []string       `json:"domain_suffix" yaml:"domain_suffix"`
+	DomainKey      []string       `json:"domain_keyword" yaml:"domain_keyword"`
+	DomainRegex    []string       `json:"domain_regex" yaml:"domain_regex"`
+	DomainWildcard []string       `json:"domain_wildcard" yaml:"domain_wildcard"`
+	AdGuardDomain  []string       `json:"adguard_domain" yaml:"adguard_domain"`
+	IPCIDR         []string       `json:"ip_cidr" yaml:"ip_cidr"`
+	SourceCIDR     []string       `json:"source_ip_cidr" yaml:"source_ip_cidr"`
+	Rules          []singRuleNode `json:"rules" yaml:"rules"`
 }
 
 type listPayload struct {
@@ -402,6 +405,9 @@ func loadTextRules(source *LoadedSource) error {
 }
 
 func extractSingRuleNode(source *LoadedSource, node singRuleNode, sub string) {
+	if category := strings.TrimSpace(node.Category); category != "" {
+		sub = category
+	}
 	for _, domain := range node.Domain {
 		domain = strings.ToLower(strings.TrimSpace(domain))
 		if domain != "" {
@@ -424,6 +430,18 @@ func extractSingRuleNode(source *LoadedSource, node singRuleNode, sub string) {
 		expr = strings.TrimSpace(expr)
 		if expr != "" {
 			appendDomainRule(source, sub, "domain_regex:"+expr, DomainRegex, expr)
+		}
+	}
+	for _, wildcard := range node.DomainWildcard {
+		wildcard = strings.ToLower(strings.TrimSpace(wildcard))
+		if wildcard != "" {
+			appendDomainRule(source, sub, "domain_wildcard:"+wildcard, DomainWildcard, wildcard)
+		}
+	}
+	for _, adguard := range node.AdGuardDomain {
+		adguard = strings.TrimSpace(adguard)
+		if adguard != "" {
+			appendDomainRule(source, sub, "adguard:"+adguard, DomainAdGuard, adguard)
 		}
 	}
 	for _, cidr := range append(node.IPCIDR, node.SourceCIDR...) {

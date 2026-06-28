@@ -10,7 +10,7 @@ import (
 
 func parseCLIArgs(args []string) (CLIConfig, error) {
 	if len(args) == 0 {
-		return CLIConfig{}, errors.New("missing subcommand: use 'find', 'version', or 'web'")
+		return CLIConfig{}, errors.New("missing subcommand: use 'find', 'convert', 'version', or 'web'")
 	}
 
 	subcommand := strings.TrimSpace(args[0])
@@ -22,6 +22,8 @@ func parseCLIArgs(args []string) (CLIConfig, error) {
 		return CLIConfig{Command: "version"}, nil
 	case "find":
 		return parseFindArgs(args[1:])
+	case "convert":
+		return parseConvertArgs(args[1:])
 	case "web":
 		return parseWebArgs(args[1:])
 	default:
@@ -141,6 +143,95 @@ func parseFindArgs(args []string) (CLIConfig, error) {
 
 	if cfg.Verbose > 0 {
 		cfg.ReportEmpty = true
+	}
+
+	return cfg, nil
+}
+
+func parseConvertArgs(args []string) (CLIConfig, error) {
+	cfg := CLIConfig{Command: "convert"}
+	positionals := make([]string, 0, 2)
+
+	for i := 0; i < len(args); i++ {
+		arg := strings.TrimSpace(args[i])
+		if arg == "" {
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(arg, "-i="):
+			cfg.ConvertIn = strings.TrimSpace(strings.TrimPrefix(arg, "-i="))
+			if cfg.ConvertIn == "" {
+				return CLIConfig{}, errors.New("-i/--input requires a non-empty path")
+			}
+		case strings.HasPrefix(arg, "--input="):
+			cfg.ConvertIn = strings.TrimSpace(strings.TrimPrefix(arg, "--input="))
+			if cfg.ConvertIn == "" {
+				return CLIConfig{}, errors.New("-i/--input requires a non-empty path")
+			}
+		case arg == "-i" || arg == "--input":
+			value, next, err := consumeNextArg(args, i, arg)
+			if err != nil {
+				return CLIConfig{}, err
+			}
+			cfg.ConvertIn = value
+			i = next
+		case strings.HasPrefix(arg, "-o="):
+			cfg.ConvertOut = strings.TrimSpace(strings.TrimPrefix(arg, "-o="))
+			if cfg.ConvertOut == "" {
+				return CLIConfig{}, errors.New("-o/--output requires a non-empty path")
+			}
+		case strings.HasPrefix(arg, "--output="):
+			cfg.ConvertOut = strings.TrimSpace(strings.TrimPrefix(arg, "--output="))
+			if cfg.ConvertOut == "" {
+				return CLIConfig{}, errors.New("-o/--output requires a non-empty path")
+			}
+		case arg == "-o" || arg == "--output":
+			value, next, err := consumeNextArg(args, i, arg)
+			if err != nil {
+				return CLIConfig{}, err
+			}
+			cfg.ConvertOut = value
+			i = next
+		case strings.HasPrefix(arg, "--to="):
+			cfg.ConvertTo = strings.TrimSpace(strings.TrimPrefix(arg, "--to="))
+			if cfg.ConvertTo == "" {
+				return CLIConfig{}, errors.New("--to requires a non-empty format")
+			}
+		case arg == "--to":
+			value, next, err := consumeNextArg(args, i, "--to")
+			if err != nil {
+				return CLIConfig{}, err
+			}
+			cfg.ConvertTo = value
+			i = next
+		case strings.HasPrefix(arg, "-"):
+			return CLIConfig{}, fmt.Errorf("unknown flag: %s", arg)
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+
+	if len(positionals) > 2 {
+		return CLIConfig{}, fmt.Errorf("unexpected positional argument for convert subcommand: %s", positionals[2])
+	}
+	if len(positionals) >= 1 {
+		if cfg.ConvertIn != "" {
+			return CLIConfig{}, errors.New("convert input specified more than once")
+		}
+		cfg.ConvertIn = positionals[0]
+	}
+	if len(positionals) == 2 {
+		if cfg.ConvertOut != "" {
+			return CLIConfig{}, errors.New("convert output specified more than once")
+		}
+		cfg.ConvertOut = positionals[1]
+	}
+	if cfg.ConvertIn == "" {
+		return CLIConfig{}, errors.New("convert requires -i/--input or an input positional path")
+	}
+	if cfg.ConvertOut == "" {
+		return CLIConfig{}, errors.New("convert requires -o/--output or an output positional path")
 	}
 
 	return cfg, nil

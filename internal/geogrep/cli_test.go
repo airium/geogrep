@@ -106,6 +106,45 @@ func TestParseCLIArgsWebInvalidListen(t *testing.T) {
 	}
 }
 
+func TestParseCLIArgsConvertFlags(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"convert", "-i", "in.dat", "-o", "out.json", "--to", "json"})
+	if err != nil {
+		t.Fatalf("parseCLIArgs returned error: %v", err)
+	}
+	if cfg.Command != "convert" {
+		t.Fatalf("command=%s want=convert", cfg.Command)
+	}
+	if cfg.ConvertIn != "in.dat" {
+		t.Fatalf("input=%s want=in.dat", cfg.ConvertIn)
+	}
+	if cfg.ConvertOut != "out.json" {
+		t.Fatalf("output=%s want=out.json", cfg.ConvertOut)
+	}
+	if cfg.ConvertTo != "json" {
+		t.Fatalf("to=%s want=json", cfg.ConvertTo)
+	}
+}
+
+func TestParseCLIArgsConvertPositionals(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"convert", "in.list", "out.srs"})
+	if err != nil {
+		t.Fatalf("parseCLIArgs returned error: %v", err)
+	}
+	if cfg.ConvertIn != "in.list" {
+		t.Fatalf("input=%s want=in.list", cfg.ConvertIn)
+	}
+	if cfg.ConvertOut != "out.srs" {
+		t.Fatalf("output=%s want=out.srs", cfg.ConvertOut)
+	}
+}
+
+func TestParseCLIArgsConvertRequiresOutput(t *testing.T) {
+	_, err := parseCLIArgs([]string{"convert", "-i", "in.list"})
+	if err == nil {
+		t.Fatal("expected error for missing output")
+	}
+}
+
 func TestParseCLIArgsMissingSubcommand(t *testing.T) {
 	_, err := parseCLIArgs([]string{})
 	if err == nil {

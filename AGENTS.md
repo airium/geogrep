@@ -20,6 +20,7 @@ Important paths:
 - `internal/geogrep/input.go`: input classification.
 - `internal/geogrep/loader.go`, `loader_srs.go`, `loader_mrs.go`: data loaders.
 - `internal/geogrep/match.go`: query matching.
+- `internal/geogrep/convert.go`: geodata conversion command and writers.
 - `internal/geogrep/report.go`: stdout and JSON export formatting.
 - `internal/geogrep/web.go`: HTTP API, embedded UI serving, web security.
 - `internal/geogrep/webui/index.html`: embedded static UI.
@@ -28,9 +29,10 @@ Important paths:
 
 ## Current Behavior to Preserve
 
-- CLI subcommands are `find`, `web`, and `version`.
+- CLI subcommands are `find`, `convert`, `web`, and `version`.
 - `find` supports `-db/--database`, `--json`, `-v/--verbose`, `-4`, `-6`, `-d`,
   and `-k`.
+- `convert` supports `-i/--input`, `-o/--output`, and `--to`.
 - `web` defaults to `0.0.0.0:8080`.
 - API routes are stable:
   - `/health`
@@ -87,6 +89,7 @@ Existing tests cover:
 - input classification.
 - loaders.
 - matching.
+- conversion.
 - report formatting.
 - web API, redirects, path guards, and security-sensitive behavior.
 

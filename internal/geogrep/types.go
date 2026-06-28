@@ -46,6 +46,9 @@ type CLIConfig struct {
 	Command     string
 	DBDir       string
 	JSONPath    string
+	ConvertIn   string
+	ConvertOut  string
+	ConvertTo   string
 	ReportEmpty bool
 	Verbose     int
 	ListenAddr  string

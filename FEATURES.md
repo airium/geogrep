@@ -69,6 +69,20 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - `--json PATH` writes structured metadata, query results, matches, optional
   no-match records, and loader diagnostics.
 
+### Format Conversion
+
+- `geogrep convert -i INPUT -o OUTPUT [--to FORMAT]` transforms loaded rule data
+  between supported geodata formats.
+- Output format can be inferred from the output extension or forced with
+  `--to`.
+- Supported output formats include JSON, YAML, list/txt, V2Ray/Xray `.dat`,
+  singgeo geosite `.db`, sing-box `.srs`, mihomo `.mrs`, and GeoIP `.mmdb`.
+- Conversion preserves categories where the target format has an equivalent
+  category or code field.
+- Target-specific constraints are explicit: `.dat` cannot mix GeoIP and
+  GeoSite payloads, `.mrs` cannot mix domain and IP CIDR behaviors, singgeo is
+  domain-only, and MMDB is IP/CIDR-only.
+
 ### Web Service
 
 - `geogrep web` starts an HTTP server on `0.0.0.0:8080` by default.
@@ -108,7 +122,7 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - `make build` embeds version, commit, and UTC build timestamp.
 - `make all` builds native and Windows amd64 binaries.
 - `go test ./...` covers CLI parsing, discovery, loaders, matching, reporting,
-  web API behavior, redirects, and path guards.
+  conversion, web API behavior, redirects, and path guards.
 
 ## History Summary
 
@@ -143,6 +157,9 @@ The project history is compact and linear:
 - `webui: refactor embedded web UI with Kumo-inspired layout`
   - Replaced the older embedded interface with a Kumo-inspired static UI while
     preserving the existing API and share-link behavior.
+- `feat: add geodata format conversion`
+  - Added `geogrep convert` for transforming loaded rule data into JSON, YAML,
+    list/txt, `.dat`, singgeo `.db`, `.srs`, `.mrs`, and `.mmdb` outputs.
 
 ## Non-Goals and Limits
 
@@ -153,3 +170,5 @@ The project history is compact and linear:
   intentionally adopts a frontend build pipeline later.
 - Keyword searches can be large because they are designed for broad rule
   inspection.
+- Conversion is best-effort across target format capabilities and rejects
+  targets that cannot represent the loaded rule mix.
