@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Binary rule loaders now reject oversized singgeo and SRS length fields before
+  allocating memory.
 - Agent and contributor guidance now points maintainers to the shared
   development workflow and one-fix-per-commit expectations.
 

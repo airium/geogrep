@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -43,6 +44,49 @@ func TestLoadSingGeoSite(t *testing.T) {
 	}
 	if source.DomainRule[0].Rule != "suffix:google.com" {
 		t.Fatalf("rule=%s want=suffix:google.com", source.DomainRule[0].Rule)
+	}
+}
+
+func TestLoadSingGeoSiteRejectsOversizedEntryCount(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "geosite.db")
+
+	var content bytes.Buffer
+	content.WriteByte(0)
+	writeUvarintForTest(t, &content, maxBinaryEntryCount+1)
+	if err := os.WriteFile(path, content.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	source := LoadedSource{Path: path}
+	err := loadSingGeoSite(&source)
+	if err == nil {
+		t.Fatal("expected oversized entry count error")
+	}
+	if !strings.Contains(err.Error(), "singgeo entry count too large") {
+		t.Fatalf("error=%q want oversized entry count", err)
+	}
+}
+
+func TestLoadSingGeoSiteRejectsOversizedString(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "geosite.db")
+
+	var content bytes.Buffer
+	content.WriteByte(0)
+	writeUvarintForTest(t, &content, 1)
+	writeUvarintForTest(t, &content, maxBinaryStringLength+1)
+	if err := os.WriteFile(path, content.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	source := LoadedSource{Path: path}
+	err := loadSingGeoSite(&source)
+	if err == nil {
+		t.Fatal("expected oversized string error")
+	}
+	if !strings.Contains(err.Error(), "string length too large") {
+		t.Fatalf("error=%q want oversized string", err)
 	}
 }
 

@@ -16,6 +16,10 @@ import (
 )
 
 const (
+	maxSRSListLength       = 1 << 20
+	maxSRSStringLength     = 1 << 20
+	maxSRSPrefixRangeCount = 1 << 20
+
 	srsRuleItemQueryType uint8 = iota
 	srsRuleItemNetwork
 	srsRuleItemDomain
@@ -253,13 +257,13 @@ func readSRSDefaultRule(reader *bufio.Reader, source *LoadedSource, sub string) 
 }
 
 func readSRSStringList(reader *bufio.Reader) ([]string, error) {
-	length, err := binary.ReadUvarint(reader)
+	length, err := readBoundedSRSUvarint(reader, maxSRSListLength, "SRS string list length")
 	if err != nil {
 		return nil, err
 	}
 	result := make([]string, 0, length)
 	for i := uint64(0); i < length; i++ {
-		strLen, err := binary.ReadUvarint(reader)
+		strLen, err := readBoundedSRSUvarint(reader, maxSRSStringLength, "SRS string length")
 		if err != nil {
 			return nil, err
 		}
@@ -273,7 +277,7 @@ func readSRSStringList(reader *bufio.Reader) ([]string, error) {
 }
 
 func readSRSUint16List(reader *bufio.Reader) ([]uint16, error) {
-	length, err := binary.ReadUvarint(reader)
+	length, err := readBoundedSRSUvarint(reader, maxSRSListLength, "SRS uint16 list length")
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +289,7 @@ func readSRSUint16List(reader *bufio.Reader) ([]uint16, error) {
 }
 
 func readSRSUint8List(reader *bufio.Reader) ([]byte, error) {
-	length, err := binary.ReadUvarint(reader)
+	length, err := readBoundedSRSUvarint(reader, maxSRSListLength, "SRS uint8 list length")
 	if err != nil {
 		return nil, err
 	}
@@ -306,10 +310,13 @@ func readSRSIPSet(reader *bufio.Reader) ([]netip.Prefix, error) {
 	if err := binary.Read(reader, binary.BigEndian, &length); err != nil {
 		return nil, err
 	}
+	if length > maxSRSPrefixRangeCount {
+		return nil, fmt.Errorf("SRS IP range count too large: %d > %d", length, maxSRSPrefixRangeCount)
+	}
 
 	prefixes := make([]netip.Prefix, 0)
 	for i := uint64(0); i < length; i++ {
-		fromLen, err := binary.ReadUvarint(reader)
+		fromLen, err := readBoundedSRSUvarint(reader, 16, "SRS IP range start length")
 		if err != nil {
 			return nil, err
 		}
@@ -318,7 +325,7 @@ func readSRSIPSet(reader *bufio.Reader) ([]netip.Prefix, error) {
 			return nil, err
 		}
 
-		toLen, err := binary.ReadUvarint(reader)
+		toLen, err := readBoundedSRSUvarint(reader, 16, "SRS IP range end length")
 		if err != nil {
 			return nil, err
 		}
@@ -345,7 +352,7 @@ func readSRSIPSet(reader *bufio.Reader) ([]netip.Prefix, error) {
 }
 
 func readSRSPrefix(reader *bufio.Reader) (netip.Prefix, error) {
-	addrLen, err := binary.ReadUvarint(reader)
+	addrLen, err := readBoundedSRSUvarint(reader, 16, "SRS prefix address length")
 	if err != nil {
 		return netip.Prefix{}, err
 	}
@@ -362,4 +369,15 @@ func readSRSPrefix(reader *bufio.Reader) (netip.Prefix, error) {
 		return netip.Prefix{}, errors.New("invalid SRS prefix address")
 	}
 	return netip.PrefixFrom(addr.Unmap(), int(bits)).Masked(), nil
+}
+
+func readBoundedSRSUvarint(reader *bufio.Reader, max uint64, label string) (uint64, error) {
+	value, err := binary.ReadUvarint(reader)
+	if err != nil {
+		return 0, err
+	}
+	if value > max {
+		return 0, fmt.Errorf("%s too large: %d > %d", label, value, max)
+	}
+	return value, nil
 }

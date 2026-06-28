@@ -43,6 +43,11 @@ type listPayload struct {
 	Rules   []string `json:"rules" yaml:"rules"`
 }
 
+const (
+	maxBinaryStringLength = 1 << 20
+	maxBinaryEntryCount   = 1 << 20
+)
+
 func loadDatabases(discovery DiscoveryResult) ([]LoadedDatabase, []Diagnostic) {
 	loaded := make([]LoadedDatabase, 0, len(discovery.Databases))
 	diagnostics := make([]Diagnostic, 0)
@@ -157,7 +162,7 @@ func loadSingGeoSite(source *LoadedSource) error {
 		return errors.New("invalid singgeo version")
 	}
 
-	entryLength, err := readUvarint(reader)
+	entryLength, err := readBoundedUvarint(reader, maxBinaryEntryCount, "singgeo entry count")
 	if err != nil {
 		return err
 	}
@@ -244,13 +249,27 @@ func readUvarint(reader *bytes.Reader) (uint64, error) {
 	return binary.ReadUvarint(reader)
 }
 
+func readBoundedUvarint(reader *bytes.Reader, max uint64, label string) (uint64, error) {
+	value, err := readUvarint(reader)
+	if err != nil {
+		return 0, err
+	}
+	if value > max {
+		return 0, fmt.Errorf("%s too large: %d > %d", label, value, max)
+	}
+	return value, nil
+}
+
 func readVString(reader *bytes.Reader) (string, error) {
-	strLen, err := readUvarint(reader)
+	strLen, err := readBoundedUvarint(reader, maxBinaryStringLength, "string length")
 	if err != nil {
 		return "", err
 	}
 	if strLen == 0 {
 		return "", nil
+	}
+	if strLen > uint64(reader.Len()) {
+		return "", fmt.Errorf("string length exceeds remaining input: %d > %d", strLen, reader.Len())
 	}
 	buf := make([]byte, strLen)
 	if _, err := io.ReadFull(reader, buf); err != nil {
