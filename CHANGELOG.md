@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
 
 - Binary rule loaders now reject oversized singgeo and SRS length fields before
   allocating memory.
+- Loader failures no longer leave partially parsed rules active for lookup or
+  `.db` compatibility fallback.
 - Agent and contributor guidance now points maintainers to the shared
   development workflow and one-fix-per-commit expectations.
 

@@ -90,6 +90,59 @@ func TestLoadSingGeoSiteRejectsOversizedString(t *testing.T) {
 	}
 }
 
+func TestLoadSourceDoesNotKeepPartialSingGeoRulesOnError(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "geosite.db")
+	writePartialSingGeoFile(t, path)
+
+	loaded, diagnostics := loadSource(DiscoveredSource{Display: "geosite.db", Path: path})
+	if len(diagnostics) != 1 {
+		t.Fatalf("diagnostics=%d want=1", len(diagnostics))
+	}
+	if len(loaded.DomainRule) != 0 {
+		t.Fatalf("domain rules=%d want=0 after failed load", len(loaded.DomainRule))
+	}
+	if loaded.Format != "" {
+		t.Fatalf("format=%q want empty after failed load", loaded.Format)
+	}
+}
+
+func TestDBCompatibilityDoesNotKeepPartialFailedAttempt(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "ambiguous.db")
+	writePartialSingGeoFile(t, path)
+
+	loaded, diagnostics := loadSource(DiscoveredSource{Display: "ambiguous.db", Path: path})
+	if len(diagnostics) != 1 {
+		t.Fatalf("diagnostics=%d want=1", len(diagnostics))
+	}
+	if len(loaded.DomainRule) != 0 || len(loaded.GeoIPRules) != 0 || loaded.MMDB != nil {
+		t.Fatalf("loaded partial data after failed .db compatibility parse: domain=%d geoip=%d mmdb=%t", len(loaded.DomainRule), len(loaded.GeoIPRules), loaded.MMDB != nil)
+	}
+}
+
+func writePartialSingGeoFile(t *testing.T, path string) {
+	t.Helper()
+
+	var payload bytes.Buffer
+	payload.WriteByte(1)
+	writeVStringForTest(t, &payload, "google.com")
+	payload.WriteByte(1)
+	writeUvarintForTest(t, &payload, 20)
+
+	var metadata bytes.Buffer
+	metadata.WriteByte(0)
+	writeUvarintForTest(t, &metadata, 1)
+	writeVStringForTest(t, &metadata, "google")
+	writeUvarintForTest(t, &metadata, 0)
+	writeUvarintForTest(t, &metadata, 2)
+
+	content := append(metadata.Bytes(), payload.Bytes()...)
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func writeUvarintForTest(t *testing.T, buf *bytes.Buffer, v uint64) {
 	t.Helper()
 	var tmp [10]byte

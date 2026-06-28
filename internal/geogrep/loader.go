@@ -84,36 +84,52 @@ func loadSource(src DiscoveredSource) (LoadedSource, []Diagnostic) {
 	ext := strings.ToLower(filepath.Ext(src.Path))
 	switch ext {
 	case ".mmdb", ".metadb":
-		if err := loadMMDB(&loaded); err != nil {
+		if candidate, err := loadSourceWith(src, loadMMDB); err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Level: "error", Scope: src.Display, Message: err.Error()})
+		} else {
+			loaded = candidate
 		}
 	case ".dat":
-		if err := loadDAT(&loaded); err != nil {
+		if candidate, err := loadSourceWith(src, loadDAT); err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Level: "error", Scope: src.Display, Message: err.Error()})
+		} else {
+			loaded = candidate
 		}
 	case ".srs":
-		if err := loadSRS(&loaded); err != nil {
+		if candidate, err := loadSourceWith(src, loadSRS); err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Level: "error", Scope: src.Display, Message: err.Error()})
+		} else {
+			loaded = candidate
 		}
 	case ".mrs":
-		if err := loadMRS(&loaded); err != nil {
+		if candidate, err := loadSourceWith(src, loadMRS); err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Level: "error", Scope: src.Display, Message: err.Error()})
+		} else {
+			loaded = candidate
 		}
 	case ".json":
-		if err := loadJSONRules(&loaded); err != nil {
+		if candidate, err := loadSourceWith(src, loadJSONRules); err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Level: "error", Scope: src.Display, Message: err.Error()})
+		} else {
+			loaded = candidate
 		}
 	case ".yaml", ".yml":
-		if err := loadYAMLRules(&loaded); err != nil {
+		if candidate, err := loadSourceWith(src, loadYAMLRules); err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Level: "error", Scope: src.Display, Message: err.Error()})
+		} else {
+			loaded = candidate
 		}
 	case ".list", ".txt":
-		if err := loadTextRules(&loaded); err != nil {
+		if candidate, err := loadSourceWith(src, loadTextRules); err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Level: "error", Scope: src.Display, Message: err.Error()})
+		} else {
+			loaded = candidate
 		}
 	case ".db":
-		if err := loadDBCompatibility(&loaded); err != nil {
+		if candidate, err := loadDBCompatibility(src); err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Level: "error", Scope: src.Display, Message: err.Error()})
+		} else {
+			loaded = candidate
 		}
 	default:
 		diagnostics = append(diagnostics, Diagnostic{Level: "warning", Scope: src.Display, Message: "unsupported file extension"})
@@ -122,23 +138,30 @@ func loadSource(src DiscoveredSource) (LoadedSource, []Diagnostic) {
 	return loaded, diagnostics
 }
 
-func loadDBCompatibility(source *LoadedSource) error {
-	if err := loadMMDB(source); err == nil {
-		return nil
+func loadSourceWith(src DiscoveredSource, loader func(*LoadedSource) error) (LoadedSource, error) {
+	candidate := LoadedSource{Display: src.Display, Path: src.Path}
+	if err := loader(&candidate); err != nil {
+		closeDatabases([]LoadedDatabase{{Sources: []LoadedSource{candidate}}})
+		return LoadedSource{}, err
 	}
-	if err := loadSingGeoSite(source); err == nil {
-		return nil
+	return candidate, nil
+}
+
+func loadDBCompatibility(src DiscoveredSource) (LoadedSource, error) {
+	loaders := []func(*LoadedSource) error{
+		loadMMDB,
+		loadSingGeoSite,
+		loadDAT,
+		loadSRS,
+		loadMRS,
 	}
-	if err := loadDAT(source); err == nil {
-		return nil
+	for _, loader := range loaders {
+		candidate, err := loadSourceWith(src, loader)
+		if err == nil {
+			return candidate, nil
+		}
 	}
-	if err := loadSRS(source); err == nil {
-		return nil
-	}
-	if err := loadMRS(source); err == nil {
-		return nil
-	}
-	return fmt.Errorf("failed to parse .db file as mmdb/singgeo/dat/srs/mrs")
+	return LoadedSource{}, fmt.Errorf("failed to parse .db file as mmdb/singgeo/dat/srs/mrs")
 }
 
 type singGeoSiteIndex struct {
