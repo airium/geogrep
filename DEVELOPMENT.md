@@ -28,7 +28,7 @@ Examples:
 ```text
 fix(loader): reject oversized SRS string lengths
 docs(development): add commit message guidance
-build(release): bump version to 0.3.0
+build(release): bump version to 0.3.1
 ```
 
 When a task asks for one commit per fix, keep each commit focused and include

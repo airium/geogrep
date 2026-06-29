@@ -160,6 +160,10 @@ The project history is compact and linear:
 - `feat: add geodata format conversion`
   - Added `geogrep convert` for transforming loaded rule data into JSON, YAML,
     list/txt, `.dat`, singgeo `.db`, `.srs`, `.mrs`, and `.mmdb` outputs.
+- `build(release): bump version to 0.3.1`
+  - Released loader validation hardening, atomic conversion output replacement,
+    improved invalid-rule reporting, AdGuard domain matcher behavior, and shared
+    development workflow guidance.
 
 ## Non-Goals and Limits
 

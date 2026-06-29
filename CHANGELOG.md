@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-06-29
+
 ### Added
 
 - `DEVELOPMENT.md` with Conventional Commit and signed-commit guidance.
