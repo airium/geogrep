@@ -39,6 +39,23 @@ func TestLoadTextRulesReportsInvalidTypedRules(t *testing.T) {
 	}
 }
 
+func TestLoadJSONRulesAcceptsScalarStringListFields(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "rules.json")
+	writeTestFile(t, path, `{"version":2,"rules":[{"domain":["example.com"],"domain_regex":"^cdn\\.example\\.com$"}]}`)
+
+	source := LoadedSource{Path: path, Display: "rules.json"}
+	if err := loadJSONRules(&source); err != nil {
+		t.Fatalf("loadJSONRules error: %v", err)
+	}
+	if source.Format != "json" {
+		t.Fatalf("format=%s want=json", source.Format)
+	}
+	if len(source.DomainRule) != 2 {
+		t.Fatalf("domain rules=%d want=2", len(source.DomainRule))
+	}
+}
+
 func TestConvertRejectsInvalidTypedRules(t *testing.T) {
 	tmp := t.TempDir()
 	in := filepath.Join(tmp, "rules.list")

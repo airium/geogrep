@@ -1,13 +1,15 @@
 # geogrep
 
-`geogrep` is a unified lookup tool for geodata databases. It searches IP,
-CIDR, domain, and keyword queries across common geoip and geosite formats, then
-reports exactly which database, source, category, and rule matched.
+`geogrep` is a unified lookup and inspection tool for geodata databases. It
+searches IP, CIDR, domain, and keyword queries across common geoip and geosite
+formats, lists ruleset/category contents, then reports exactly which database,
+source, category, and rule matched.
 
 Use it when you need to answer questions such as:
 
 - Which geoip or geosite datasets match this IP, CIDR, domain, or keyword?
 - What country, category, ASN-like entry, or rule produced the match?
+- Which rules are contained in this ruleset/category?
 - Do different upstream geodata formats agree for the same lookup?
 - Can I expose the same lookup engine through a browser or HTTP API?
 
@@ -17,6 +19,7 @@ Use it when you need to answer questions such as:
 - Automatic input classification for IP, CIDR, domain, and keyword values.
 - Explicit type forcing with `-4`, `-6`, `-d`, and `-k`.
 - Batch lookup while preserving input order.
+- Ruleset/category listing through CLI, JSON output, HTTP API, and web UI.
 - Structured JSON export for automation.
 - `convert` subcommand for transforming loaded rule data between supported
   geodata formats.
@@ -49,6 +52,12 @@ Prepare a directory of geodata files, then run:
 
 # Mix auto-detected positional inputs.
 ./geogrep find -db <dir/to/db> 1.1.1.1 1.1.1.0/24 google.com google
+
+# List every rule from exact ruleset names.
+./geogrep list -db <dir/to/db> lan private
+
+# Export a ruleset listing.
+./geogrep list -db <dir/to/db> cn --json ./list.json
 
 # Export structured results.
 ./geogrep find -db <dir/to/db> -v google.com --json ./result.json
@@ -83,6 +92,8 @@ geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db|--database DB_DIR|DB_F
   [-4 IPv4_OR_CIDR] [-6 IPv6_OR_CIDR6] [-d DOMAIN] [-k KEYWORD] \
   [IP_OR_CIDR_OR_DOMAIN_OR_KEYWORD ...]
 
+geogrep list [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] RULESET_NAME [...]
+
 geogrep convert -i INPUT_PATH -o OUTPUT_PATH [--to FORMAT]
 
 geogrep web [-db|--database DB_DIR|DB_FILE] [-l|--listen IP:PORT] [--webui PATH] \
@@ -97,7 +108,7 @@ Options:
   file.
   If omitted, `geogrep` scans the current directory. If that yields no
   supported files, it falls back to the executable directory.
-- `--json PATH`: write structured JSON output.
+- `--json PATH`: write structured JSON output for `find` or `list`.
 - `-v`, `--verbose`, `--verbose=N`: increase verbosity. Level `>= 1` enables
   explicit per-database no-match records.
 - `-4 VALUE`: force IPv4 or IPv4 CIDR parsing.
@@ -105,6 +116,8 @@ Options:
 - `-d VALUE`: force domain parsing. Non-domain input is rejected; use `-k` for
   keyword searches.
 - `-k VALUE`: force keyword parsing.
+- `RULESET_NAME`: exact ruleset/category name to list with `geogrep list`.
+  Multiple names can be supplied.
 - `-i PATH`, `--input PATH`: input file or directory for `convert`.
 - `-o PATH`, `--output PATH`: output file for `convert`.
 - `--to FORMAT`: output format for `convert`. If omitted, the format is
@@ -117,8 +130,8 @@ Options:
 
 ## Web UI and API
 
-`geogrep web` loads databases once at startup, then serves the same lookup
-engine over HTTP.
+`geogrep web` loads databases once at startup, then serves lookup and ruleset
+listing over HTTP.
 
 Routes:
 
@@ -129,7 +142,11 @@ Routes:
 - `GET /api/find/ipv6/<IP_or_CIDR>`
 - `GET /api/find/domain/<domain>`
 - `GET /api/find/keyword/<keyword>`
-- `GET /find/<type>/<value>` redirects to the UI with query parameters.
+- `GET /api/list/<ruleset>`
+- `GET /find/<type>/<value>` redirects to the UI with
+  `?mode=find&type=<type>&q=<value>`.
+- `GET /find/list/<ruleset>` redirects to the UI with
+  `?mode=list&q=<ruleset>`.
 
 Examples:
 
@@ -139,15 +156,17 @@ curl "http://127.0.0.1:8080/openapi.json"
 curl "http://127.0.0.1:8080/api/find/auto/1.1.1.1"
 curl "http://127.0.0.1:8080/api/find/domain/google.com"
 curl "http://127.0.0.1:8080/api/find/ipv4/1.1.1.0/24"
+curl "http://127.0.0.1:8080/api/list/cn"
 ```
 
 Built-in UI behavior:
 
 - Root `/` serves the embedded static UI unless `--api-only` is set.
-- The UI can search all API modes, copy share/API URLs, expand long match
-  groups, and inspect the raw JSON response.
+- The UI can search all lookup modes, list rulesets, copy share/API URLs,
+  expand long result groups, and inspect the raw JSON response.
 - The UI displays the running geogrep version reported by `/health`.
-- Share redirects auto-run the lookup when opened in a browser.
+- Share redirects auto-run the lookup or ruleset listing when opened in a
+  browser.
 - The embedded UI is dependency-free and lives in
   [internal/geogrep/webui/index.html](internal/geogrep/webui/index.html).
 
@@ -210,6 +229,7 @@ folders are supported.
 - `.srs`: sing-box binary rule sets.
 - `.mrs`: mihomo binary rule sets for supported domain and IP CIDR behavior.
 - `.json`: sing-box-style rule sets, `payload`/`rules` lists, or string arrays.
+  Known sing-box string-list fields can be encoded as a string or string array.
 - `.yaml`, `.yml`: same supported shapes as JSON.
 - `.list`, `.txt`: text rules such as `DOMAIN`, `DOMAIN-SUFFIX`,
   `DOMAIN-KEYWORD`, `DOMAIN-REGEX`, `DOMAIN-WILDCARD`, `IP-CIDR`, and plain
@@ -255,6 +275,12 @@ Stdout output includes, for each input:
 - match lines formatted as `source | format | category | rule`
 - optional no-match lines when verbosity is enabled
 
+`geogrep list` prints each requested ruleset, grouped by matching database.
+Rulesets are matched by full loaded GeoIP/geosite category name,
+case-insensitively, so `cn` matches `CN`. Uncategorized sparse files use the
+source filename or filename stem as the ruleset name, while the containing
+directory remains the database.
+
 JSON export includes:
 
 - metadata (`generated_at`, database count, query count, no-match reporting
@@ -262,6 +288,10 @@ JSON export includes:
 - per-input results in original input order
 - per-database matches and optional no-match records
 - loader diagnostics from partial parse failures
+
+List JSON export includes metadata and one result object per requested ruleset,
+with each listed rule carrying database, source, format, ruleset, and rule
+fields.
 
 API responses use the same export document shape but intentionally omit database
 root paths and loader diagnostics to avoid leaking local runtime details.

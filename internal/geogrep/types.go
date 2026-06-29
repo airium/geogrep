@@ -49,6 +49,7 @@ type CLIConfig struct {
 	ConvertIn   string
 	ConvertOut  string
 	ConvertTo   string
+	Rulesets    []string
 	ReportEmpty bool
 	Verbose     int
 	ListenAddr  string

@@ -43,6 +43,15 @@ type apiFindResponse struct {
 	Result  ExportDocument `json:"result"`
 }
 
+type apiListRequest struct {
+	Ruleset string `json:"ruleset"`
+}
+
+type apiListResponse struct {
+	Request apiListRequest `json:"request"`
+	Result  ListDocument   `json:"result"`
+}
+
 type apiErrorResponse struct {
 	Error string `json:"error"`
 }
@@ -97,6 +106,8 @@ func runWeb(cfg CLIConfig) int {
 	mux.HandleFunc("/api/find/domain/", runtime.makeAPIFindHandler("domain", ForceDomain, "/api/find/domain/"))
 	mux.HandleFunc("/api/find/keyword", runtime.handleMissingFindValue)
 	mux.HandleFunc("/api/find/keyword/", runtime.makeAPIFindHandler("keyword", ForceKeyword, "/api/find/keyword/"))
+	mux.HandleFunc("/api/list", runtime.handleMissingListRuleset)
+	mux.HandleFunc("/api/list/", runtime.handleAPIList)
 
 	if cfg.APIOnly {
 		mux.HandleFunc("/", runtime.handleAPIOnlyRoot)
@@ -188,6 +199,9 @@ func (s *webRuntime) buildOpenAPISpec(r *http.Request) map[string]any {
 			"/api/find/keyword/{value}": map[string]any{
 				"get": makeFindOperation("Lookup as keyword", "keyword"),
 			},
+			"/api/list/{ruleset}": map[string]any{
+				"get": makeListOperation(),
+			},
 			"/openapi.json": map[string]any{
 				"get": map[string]any{
 					"summary": "OpenAPI document",
@@ -223,6 +237,29 @@ func makeFindOperation(summary string, example string) map[string]any {
 	}
 }
 
+func makeListOperation() map[string]any {
+	return map[string]any{
+		"summary": "List rules from a ruleset",
+		"parameters": []map[string]any{
+			{
+				"name":        "ruleset",
+				"in":          "path",
+				"required":    true,
+				"description": "Ruleset or category name",
+				"schema": map[string]any{
+					"type": "string",
+				},
+				"example": "cn",
+			},
+		},
+		"responses": map[string]any{
+			"200": map[string]any{"description": "Ruleset listing"},
+			"400": map[string]any{"description": "Bad request"},
+			"405": map[string]any{"description": "Method not allowed"},
+		},
+	}
+}
+
 func resolveWebUIFS(customPath string) (fs.FS, error) {
 	if customPath != "" {
 		resolved, err := filepath.Abs(customPath)
@@ -239,6 +276,55 @@ func resolveWebUIFS(customPath string) (fs.FS, error) {
 		return os.DirFS(resolved), nil
 	}
 	return fs.Sub(embeddedWebUI, "webui")
+}
+
+func (s *webRuntime) handleMissingListRuleset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	writeAPIError(w, http.StatusBadRequest, "missing ruleset in path")
+}
+
+func (s *webRuntime) handleAPIList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	escapedPath := r.URL.EscapedPath()
+	escapedRuleset := strings.TrimPrefix(escapedPath, "/api/list/")
+	if escapedRuleset == "" {
+		writeAPIError(w, http.StatusBadRequest, "missing ruleset in path")
+		return
+	}
+
+	ruleset, err := url.PathUnescape(escapedRuleset)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid encoded path value")
+		return
+	}
+	ruleset = strings.TrimSpace(ruleset)
+	if ruleset == "" {
+		writeAPIError(w, http.StatusBadRequest, "empty ruleset")
+		return
+	}
+	if len(ruleset) > maxLookupValueLength {
+		writeAPIError(w, http.StatusRequestURITooLong, "ruleset too long")
+		return
+	}
+
+	s.lookupMu.Lock()
+	results := listRulesets(s.databases, []string{ruleset})
+	s.lookupMu.Unlock()
+
+	// Avoid leaking loader/runtime internals in public API responses.
+	document := buildListDocument(s.discovery, results, nil)
+	response := apiListResponse{
+		Request: apiListRequest{Ruleset: ruleset},
+		Result:  document,
+	}
+	writeAPIJSON(w, http.StatusOK, response)
 }
 
 func (s *webRuntime) handleMissingFindValue(w http.ResponseWriter, r *http.Request) {
@@ -318,6 +404,7 @@ func (s *webRuntime) handleAPIOnlyRoot(w http.ResponseWriter, r *http.Request) {
 			"GET /api/find/ipv6/<IP_or_CIDR>",
 			"GET /api/find/domain/<domain>",
 			"GET /api/find/keyword/<keyword>",
+			"GET /api/list/<ruleset>",
 		},
 	})
 }
@@ -336,6 +423,21 @@ func (s *webRuntime) handleShareRedirect(w http.ResponseWriter, r *http.Request)
 	}
 
 	kind := parts[0]
+	if kind == "list" {
+		value, err := url.PathUnescape(parts[1])
+		if err != nil {
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+		value = strings.TrimSpace(value)
+		if value == "" {
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+		target := "/?mode=list&q=" + url.QueryEscape(value)
+		http.Redirect(w, r, target, http.StatusFound)
+		return
+	}
 	if !isShareFindType(kind) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
@@ -352,7 +454,7 @@ func (s *webRuntime) handleShareRedirect(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	target := "/?type=" + url.QueryEscape(kind) + "&q=" + url.QueryEscape(value)
+	target := "/?mode=find&type=" + url.QueryEscape(kind) + "&q=" + url.QueryEscape(value)
 	http.Redirect(w, r, target, http.StatusFound)
 }
 

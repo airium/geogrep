@@ -13,6 +13,15 @@ capabilities added through the repository history.
 - Reports provenance for every match: database, source, format, category, and
   matched rule or network.
 
+### Ruleset Listing
+
+- Lists all rules in loaded ruleset/category names with `geogrep list`.
+- Ruleset matching is exact by name and case-insensitive.
+- For grouped sparse files, the child directory is the database and each direct
+  file is a ruleset; each file line is a rule.
+- Supports human-readable stdout, `--json`, `GET /api/list/<ruleset>`, and web
+  UI list mode.
+
 ### Input Modes
 
 - `auto`: classify input as IP, CIDR, domain, then keyword fallback.
@@ -39,6 +48,7 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - mihomo `.mrs` binary rule sets for supported domain and IP CIDR behavior.
 - JSON and YAML rule sets:
   - sing-box-style `rules`
+  - string or string-array values for known sing-box string-list fields
   - `payload` or `rules` lists
   - string arrays
 - Plain `.list` and `.txt` rule files.
@@ -50,6 +60,8 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - Direct child directories are treated as grouped databases.
 - Direct files inside grouped directories are grouped sources and appear as
   `folder/file.ext` in output.
+- In ruleset listing mode, grouped source filenames or filename stems are the
+  ruleset names for uncategorized sparse files.
 - If `-db` is omitted, discovery checks the current directory, then the
   executable directory.
 
@@ -65,6 +77,9 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 
 - Human-readable stdout is grouped by input and database.
 - Match lines are consistently formatted as source, format, category, and rule.
+- `geogrep list [-db DB_DIR|DB_FILE] RULESET_NAME [...]` lists every rule from
+  exact, case-insensitive ruleset/category names across loaded databases.
+- `geogrep list --json PATH ...` writes structured list output for automation.
 - Verbose mode (`-v` or `--verbose`) enables explicit no-match reporting.
 - `--json PATH` writes structured metadata, query results, matches, optional
   no-match records, and loader diagnostics.
@@ -94,10 +109,11 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
   - `GET /api/find/ipv6/<IP_or_CIDR>`
   - `GET /api/find/domain/<domain>`
   - `GET /api/find/keyword/<keyword>`
+  - `GET /api/list/<ruleset>`
 - `--api-only` disables UI routes.
 - `--webui PATH` serves custom static UI files.
 - Share routes under `/find/<type>/<value>` redirect to the UI and auto-run
-  the lookup.
+  the lookup; `/find/list/<ruleset>` opens ruleset listing mode.
 
 ### Embedded Web UI
 
@@ -107,6 +123,7 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - Runtime version display loaded from the local `/health` endpoint.
 - Results render as dense database match rows with badges, expandable overflow,
   copy buttons, and raw JSON inspection.
+- Ruleset listing mode uses the same result surface and raw JSON inspection.
 - The UI preserves existing API and share-link behavior.
 
 ### Web Hardening and Privacy
@@ -114,7 +131,7 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - Static asset path traversal guards.
 - Encoded slash/backslash and suspicious `..` path blocking.
 - Method checks on API and UI routes.
-- Request value length limit for API lookups.
+- Request value length limit for API lookups and ruleset listing.
 - Security headers including CSP, frame denial, no-sniff, and no-referrer.
 - API responses avoid exposing database root paths and loader diagnostics.
 
@@ -161,6 +178,10 @@ The project history is compact and linear:
 - `feat: add geodata format conversion`
   - Added `geogrep convert` for transforming loaded rule data into JSON, YAML,
     list/txt, `.dat`, singgeo `.db`, `.srs`, `.mrs`, and `.mmdb` outputs.
+- `feat: add ruleset listing`
+  - Added `geogrep list`, list JSON export, `GET /api/list/<ruleset>`, web UI
+    list mode, case-insensitive ruleset matching, and sparse-file ruleset
+    listing semantics.
 - `build(release): bump version to 0.3.1`
   - Released loader validation hardening, atomic conversion output replacement,
     improved invalid-rule reporting, AdGuard domain matcher behavior, embedded

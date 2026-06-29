@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `geogrep list [-db|--database DB_DIR|DB_FILE] RULESET_NAME [...]` for listing
+  all rules from exact ruleset/category names across loaded databases.
+- `geogrep list --json RESULT_PATH` and `GET /api/list/<ruleset>` for
+  structured ruleset listing output.
+- Embedded web UI ruleset listing mode.
+- Ruleset matching for `list` is case-insensitive, so `cn` matches GeoIP
+  category `CN`.
+- JSON/YAML sing-box string-list fields now accept either a string or string
+  array for compatibility with common ruleset files.
+
 ## [0.3.1] - 2026-06-29
 
 ### Added

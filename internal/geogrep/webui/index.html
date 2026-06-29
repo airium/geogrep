@@ -399,7 +399,7 @@
 
     .form-grid {
       display: grid;
-      grid-template-columns: 180px minmax(260px, 1fr) auto;
+      grid-template-columns: 140px 180px minmax(260px, 1fr) auto;
       gap: 12px;
       align-items: end;
     }
@@ -608,7 +608,7 @@
     }
 
     .status:empty::after {
-      content: "Ready for lookup.";
+      content: "Ready.";
       color: var(--text-color-kumo-subtle);
       font-weight: 500;
     }
@@ -1131,7 +1131,7 @@
           <div class="header-row">
             <div class="title-block">
               <h1>Geo database lookup</h1>
-              <p class="page-description">Search IP, CIDR, domain, or keyword values through the same matching engine as <code>geogrep find</code>.</p>
+              <p class="page-description">Search IP, CIDR, domain, keyword, or ruleset values through the same engine as <code>geogrep</code>.</p>
             </div>
             <div class="header-actions">
               <span id="runtime-version" class="version-chip" data-version-label aria-label="geogrep runtime version">version loading</span>
@@ -1151,13 +1151,20 @@
             <section class="surface" aria-labelledby="lookup-title">
               <div class="surface-header">
                 <div>
-                  <h2 id="lookup-title" class="surface-title">Lookup request</h2>
-                  <p class="surface-description">Choose the parser hint and query value.</p>
+                  <h2 id="lookup-title" class="surface-title">Request</h2>
+                  <p id="request-description" class="surface-description">Choose the parser hint and query value.</p>
                 </div>
-                <span class="badge info">GET /api/find</span>
+                <span id="endpoint-badge" class="badge info">GET /api/find</span>
               </div>
               <form id="lookup-form" class="lookup-form" autocomplete="off">
                 <div class="form-grid">
+                  <div class="field">
+                    <label for="request-mode">Mode</label>
+                    <select id="request-mode" name="mode" data-kumo-component="Select">
+                      <option value="find">lookup</option>
+                      <option value="list">list</option>
+                    </select>
+                  </div>
                   <div class="field">
                     <label for="lookup-type">Lookup type</label>
                     <select id="lookup-type" name="type" data-kumo-component="Select">
@@ -1169,7 +1176,7 @@
                     </select>
                   </div>
                   <div class="field">
-                    <label for="lookup-value">Query value</label>
+                    <label id="lookup-value-label" for="lookup-value">Query value</label>
                     <input id="lookup-value" name="q" placeholder="1.1.1.1, 1.1.1.0/24, example.com, google" data-kumo-component="Input" required>
                   </div>
                   <button id="lookup-button" class="button primary" data-kumo-component="Button" type="submit">
@@ -1228,7 +1235,7 @@
 
               <ul id="matches" class="match-list" aria-label="Matched database results"></ul>
               <div id="empty-state" class="empty-state">
-                <p id="empty-title" class="empty-title">No lookup has run.</p>
+                <p id="empty-title" class="empty-title">No request has run.</p>
                 <p id="empty-body" class="empty-body">Results will appear here after the first request.</p>
               </div>
 
@@ -1246,6 +1253,7 @@
                 <li><a href="/health"><span>/health</span><span class="endpoint-arrow">open</span></a></li>
                 <li><a href="/openapi.json"><span>/openapi.json</span><span class="endpoint-arrow">open</span></a></li>
                 <li><a href="/api/find/auto/example.com"><span>/api/find/auto/{value}</span><span class="endpoint-arrow">open</span></a></li>
+                <li><a href="/api/list/cn"><span>/api/list/{ruleset}</span><span class="endpoint-arrow">open</span></a></li>
               </ul>
             </section>
 
@@ -1256,6 +1264,7 @@
                 <li><code>1.1.1.0/24</code></li>
                 <li><code>2606:4700:4700::1111</code></li>
                 <li><code>example.com</code></li>
+                <li><code>cn</code></li>
               </ul>
             </section>
           </aside>
@@ -1271,9 +1280,14 @@
       "use strict";
 
       var form = document.getElementById("lookup-form");
+      var modeEl = document.getElementById("request-mode");
       var typeEl = document.getElementById("lookup-type");
       var valueEl = document.getElementById("lookup-value");
+      var valueLabelEl = document.getElementById("lookup-value-label");
       var buttonEl = document.getElementById("lookup-button");
+      var buttonLabelEl = buttonEl.querySelector(".button-label") || buttonEl;
+      var requestDescriptionEl = document.getElementById("request-description");
+      var endpointBadgeEl = document.getElementById("endpoint-badge");
       var statusEl = document.getElementById("status");
       var summaryEl = document.getElementById("summary");
       var matchesEl = document.getElementById("matches");
@@ -1292,6 +1306,13 @@
       var currentShareURL = "";
       var currentAPIURL = "";
 
+      function sanitizeMode(mode) {
+        if (mode === "list") {
+          return "list";
+        }
+        return "find";
+      }
+
       function sanitizeType(type) {
         if (["auto", "ipv4", "ipv6", "domain", "keyword"].indexOf(type) >= 0) {
           return type;
@@ -1299,11 +1320,17 @@
         return "auto";
       }
 
-      function buildAPIPath(type, value) {
+      function buildAPIPath(mode, type, value) {
+        if (mode === "list") {
+          return "/api/list/" + encodeURIComponent(value);
+        }
         return "/api/find/" + type + "/" + encodeURIComponent(value);
       }
 
-      function buildSharePath(type, value) {
+      function buildSharePath(mode, type, value) {
+        if (mode === "list") {
+          return "/find/list/" + encodeURIComponent(value);
+        }
         return "/find/" + type + "/" + encodeURIComponent(value);
       }
 
@@ -1311,17 +1338,28 @@
         return window.location.origin + pathname;
       }
 
-      function setLinks(type, value) {
+      function setLinks(mode, type, value) {
         if (!value) {
           currentShareURL = "";
           currentAPIURL = "";
           return;
         }
 
-        var sharePath = buildSharePath(type, value);
-        var apiPath = buildAPIPath(type, value);
+        var sharePath = buildSharePath(mode, type, value);
+        var apiPath = buildAPIPath(mode, type, value);
         currentShareURL = toAbsolute(sharePath);
         currentAPIURL = toAbsolute(apiPath);
+      }
+
+      function syncModeUI() {
+        var mode = sanitizeMode(modeEl.value);
+        var isList = mode === "list";
+        typeEl.disabled = isList;
+        valueLabelEl.textContent = isList ? "Ruleset name" : "Query value";
+        valueEl.placeholder = isList ? "cn, private, lan" : "1.1.1.1, 1.1.1.0/24, example.com, google";
+        buttonLabelEl.textContent = isList ? "List rules" : "Run lookup";
+        requestDescriptionEl.textContent = isList ? "Enter a ruleset or category name." : "Choose the parser hint and query value.";
+        endpointBadgeEl.textContent = isList ? "GET /api/list" : "GET /api/find";
       }
 
       function toggleCopyActions(show) {
@@ -1381,7 +1419,7 @@
       }
 
       function setMetrics(mode, databases, rules) {
-        metricModeEl.textContent = mode || "auto";
+        metricModeEl.textContent = mode || "lookup";
         metricDatabasesEl.textContent = String(databases || 0);
         metricRulesEl.textContent = String(rules || 0);
       }
@@ -1516,11 +1554,112 @@
         }
       }
 
+      function renderListSummary(payload) {
+        var results = payload && payload.result && payload.result.results;
+        setMetrics("list", 0, 0);
+
+        if (!Array.isArray(results) || results.length === 0) {
+          summaryEl.textContent = "No result payload returned.";
+          matchesEl.innerHTML = "";
+          showEmptyState("No result payload.", "The API response did not include list results.");
+          return;
+        }
+
+        var matchedDB = {};
+        var totalRules = 0;
+        var cards = [];
+
+        results.forEach(function (result) {
+          var rules = Array.isArray(result && result.rules) ? result.rules : [];
+          totalRules += rules.length;
+          if (rules.length === 0) {
+            return;
+          }
+
+          var grouped = {};
+          var order = [];
+          rules.forEach(function (rule) {
+            var db = String((rule && rule.database) || "(unknown database)");
+            if (!grouped[db]) {
+              grouped[db] = [];
+              order.push(db);
+              matchedDB[db] = true;
+            }
+            grouped[db].push(rule);
+          });
+
+          order.forEach(function (dbName) {
+            var dbRules = grouped[dbName] || [];
+            var lines = dbRules.slice(0, 3).map(function (rule) {
+              return renderListedRuleLine(rule);
+            });
+            var extraLines = dbRules.slice(3).map(function (rule) {
+              return renderListedRuleLine(rule);
+            });
+            var hasMore = extraLines.length > 0;
+            var countLabel = dbRules.length + " rule" + (dbRules.length === 1 ? "" : "s");
+            var rowHead = "<div class=\"match-row-top\">" +
+              "<div>" +
+                "<h3 class=\"database-title\">" + escapeHTML(dbName) + "</h3>" +
+                "<div class=\"match-meta\">" +
+                  "<span class=\"badge success\">listed</span>" +
+                  "<span class=\"badge\">" + escapeHTML(result.ruleset || "") + "</span>" +
+                  "<span class=\"badge\">" + countLabel + "</span>" +
+                "</div>" +
+              "</div>";
+            var extra = "";
+            var moreHint = "";
+            if (hasMore) {
+              rowHead += "<button type=\"button\" class=\"button small expand-toggle\" data-kumo-component=\"Button\" aria-expanded=\"false\">Show more</button>";
+              extra = "<div class=\"extra-lines\">" + extraLines.join("") + "</div>";
+              moreHint = "<div class=\"more-hint\">+" + extraLines.length + " more</div>";
+            }
+            rowHead += "</div>";
+
+            cards.push(
+              "<li class=\"match-row" + (hasMore ? " has-more" : "") + "\">" +
+                rowHead +
+                (lines.length ? "<div class=\"rule-lines\">" + lines.join("") + "</div>" : "") +
+                extra +
+                moreHint +
+              "</li>"
+            );
+          });
+        });
+
+        var dbCount = Object.keys(matchedDB).length;
+        setMetrics("list", dbCount, totalRules);
+        summaryEl.textContent = "Listed " + totalRules + " rule(s) from " + dbCount + " database(s).";
+        matchesEl.innerHTML = cards.join("");
+
+        if (cards.length === 0) {
+          showEmptyState("No rules found.", "No loaded database exposed the requested ruleset.");
+        } else {
+          hideEmptyState();
+        }
+      }
+
+      function renderListedRuleLine(rule) {
+        var format = String((rule && rule.format) || "unknown").trim() || "unknown";
+        var ruleset = String((rule && rule.ruleset) || "").trim();
+        var source = String((rule && rule.source) || "").trim();
+        var value = String((rule && rule.rule) || "").trim();
+        var category = ruleset || source || "ruleset";
+
+        return "<div class=\"rule-line\">" +
+          "<div class=\"rule-meta\">" +
+            "<span class=\"badge outline\">" + escapeHTML(format) + "</span>" +
+            "<span class=\"rule-category\">" + escapeHTML(category) + "</span>" +
+          "</div>" +
+          "<code class=\"rule-code\">" + escapeHTML(value || "(empty rule)") + "</code>" +
+        "</div>";
+      }
+
       function clearResultArea() {
         summaryEl.textContent = "";
         matchesEl.innerHTML = "";
-        setMetrics(sanitizeType(typeEl.value), 0, 0);
-        showEmptyState("No lookup has run.", "Results will appear here after the first request.");
+        setMetrics(sanitizeMode(modeEl.value) === "list" ? "list" : sanitizeType(typeEl.value), 0, 0);
+        showEmptyState("No request has run.", "Results will appear here after the first request.");
         toggleCopyActions(false);
       }
 
@@ -1553,30 +1692,33 @@
         }
       }
 
-      async function runLookup(shouldUpdateHistory) {
+      async function runRequest(shouldUpdateHistory) {
         clearStatus();
 
+        var mode = sanitizeMode(modeEl.value);
         var type = sanitizeType(typeEl.value);
         var value = valueEl.value.trim();
-        setLinks(type, value);
+        setLinks(mode, type, value);
         toggleCopyActions(false);
-        setMetrics(type, 0, 0);
+        setMetrics(mode === "list" ? "list" : type, 0, 0);
 
         if (!value) {
-          setStatus("Input is required.", "error");
+          setStatus(mode === "list" ? "Ruleset is required." : "Input is required.", "error");
           clearResultArea();
           rawEl.textContent = "No request has been made yet.";
           return;
         }
 
         if (shouldUpdateHistory) {
-          var query = "?type=" + encodeURIComponent(type) + "&q=" + encodeURIComponent(value);
+          var query = mode === "list"
+            ? "?mode=list&q=" + encodeURIComponent(value)
+            : "?mode=find&type=" + encodeURIComponent(type) + "&q=" + encodeURIComponent(value);
           window.history.replaceState(null, "", "/" + query);
         }
 
-        var apiPath = buildAPIPath(type, value);
-        setStatus("Looking up...", "");
-        showEmptyState("Lookup running.", "Waiting for the API response.");
+        var apiPath = buildAPIPath(mode, type, value);
+        setStatus(mode === "list" ? "Listing..." : "Looking up...", "");
+        showEmptyState(mode === "list" ? "List request running." : "Lookup running.", "Waiting for the API response.");
         matchesEl.innerHTML = "";
         buttonEl.disabled = true;
 
@@ -1587,13 +1729,17 @@
 
           if (!response.ok) {
             var msg = payload && payload.error ? payload.error : "Request failed";
-            setStatus("Lookup failed: " + msg, "error");
+            setStatus((mode === "list" ? "List" : "Lookup") + " failed: " + msg, "error");
             clearResultArea();
             return;
           }
 
-          setStatus("Lookup succeeded.", "ok");
-          renderSummary(payload);
+          setStatus(mode === "list" ? "List succeeded." : "Lookup succeeded.", "ok");
+          if (mode === "list") {
+            renderListSummary(payload);
+          } else {
+            renderSummary(payload);
+          }
           toggleCopyActions(true);
         } catch (err) {
           rawEl.textContent = "";
@@ -1649,27 +1795,37 @@
 
       form.addEventListener("submit", function (event) {
         event.preventDefault();
-        runLookup(true);
+        runRequest(true);
       });
 
       typeEl.addEventListener("change", function () {
-        setMetrics(sanitizeType(typeEl.value), metricDatabasesEl.textContent, metricRulesEl.textContent);
+        if (sanitizeMode(modeEl.value) === "find") {
+          setMetrics(sanitizeType(typeEl.value), metricDatabasesEl.textContent, metricRulesEl.textContent);
+        }
+      });
+
+      modeEl.addEventListener("change", function () {
+        syncModeUI();
+        clearResultArea();
       });
 
       loadRuntimeVersion();
 
       (function bootFromURL() {
         var params = new URLSearchParams(window.location.search);
+        var urlMode = sanitizeMode(params.get("mode") || "find");
         var urlType = sanitizeType(params.get("type") || "auto");
         var urlValue = (params.get("q") || "").trim();
 
+        modeEl.value = urlMode;
         typeEl.value = urlType;
         valueEl.value = urlValue;
-        setMetrics(urlType, 0, 0);
-        setLinks(urlType, urlValue);
+        syncModeUI();
+        setMetrics(urlMode === "list" ? "list" : urlType, 0, 0);
+        setLinks(urlMode, urlType, urlValue);
 
         if (urlValue) {
-          runLookup(false);
+          runRequest(false);
         }
       })();
     })();

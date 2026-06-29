@@ -51,6 +51,32 @@ func TestParseCLIArgsFindVerboseLevel(t *testing.T) {
 	}
 }
 
+func TestParseCLIArgsList(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"list", "--json", "/tmp/list.json", "-db", "/tmp/db", "lan", "private"})
+	if err != nil {
+		t.Fatalf("parseCLIArgs returned error: %v", err)
+	}
+	if cfg.Command != "list" {
+		t.Fatalf("command=%s want=list", cfg.Command)
+	}
+	if cfg.DBDir != "/tmp/db" {
+		t.Fatalf("db=%s want=/tmp/db", cfg.DBDir)
+	}
+	if cfg.JSONPath != "/tmp/list.json" {
+		t.Fatalf("json=%s want=/tmp/list.json", cfg.JSONPath)
+	}
+	if len(cfg.Rulesets) != 2 || cfg.Rulesets[0] != "lan" || cfg.Rulesets[1] != "private" {
+		t.Fatalf("rulesets=%v want [lan private]", cfg.Rulesets)
+	}
+}
+
+func TestParseCLIArgsListRequiresRuleset(t *testing.T) {
+	_, err := parseCLIArgs([]string{"list", "-db", "/tmp/db"})
+	if err == nil {
+		t.Fatal("expected error for missing ruleset")
+	}
+}
+
 func TestParseCLIArgsWebDefaults(t *testing.T) {
 	cfg, err := parseCLIArgs([]string{"web"})
 	if err != nil {

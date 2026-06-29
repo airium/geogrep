@@ -30,9 +30,13 @@ Important paths:
 
 ## Current Behavior to Preserve
 
-- CLI subcommands are `find`, `convert`, `web`, and `version`.
+- CLI subcommands are `find`, `list`, `convert`, `web`, and `version`.
 - `find` supports `-db/--database`, `--json`, `-v/--verbose`, `-4`, `-6`, `-d`,
   and `-k`.
+- `list` supports `-db/--database`, `--json`, and one or more exact
+  case-insensitive ruleset names. For grouped sparse files, the direct child
+  directory is the database, each direct file is the ruleset, and each file
+  line is a rule.
 - `convert` supports `-i/--input`, `-o/--output`, and `--to`.
 - `web` defaults to `0.0.0.0:8080`.
 - API routes are stable:
@@ -43,7 +47,10 @@ Important paths:
   - `/api/find/ipv6/<value>`
   - `/api/find/domain/<value>`
   - `/api/find/keyword/<value>`
-- Share routes under `/find/<type>/<value>` redirect to `/?type=...&q=...`.
+  - `/api/list/<ruleset>`
+- Share routes under `/find/<type>/<value>` redirect to
+  `/?mode=find&type=...&q=...`. `/find/list/<ruleset>` redirects to
+  `/?mode=list&q=...`.
 - API responses must not expose local database root paths or loader diagnostics.
 - Web path traversal guards and security headers are intentional.
 - The embedded UI is currently a single dependency-free static HTML file.
@@ -105,6 +112,7 @@ Existing tests cover:
 - database discovery.
 - input classification.
 - loaders.
+- ruleset listing.
 - matching.
 - conversion.
 - report formatting.

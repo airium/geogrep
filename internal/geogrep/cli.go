@@ -10,7 +10,7 @@ import (
 
 func parseCLIArgs(args []string) (CLIConfig, error) {
 	if len(args) == 0 {
-		return CLIConfig{}, errors.New("missing subcommand: use 'find', 'convert', 'version', or 'web'")
+		return CLIConfig{}, errors.New("missing subcommand: use 'find', 'list', 'convert', 'version', or 'web'")
 	}
 
 	subcommand := strings.TrimSpace(args[0])
@@ -22,6 +22,8 @@ func parseCLIArgs(args []string) (CLIConfig, error) {
 		return CLIConfig{Command: "version"}, nil
 	case "find":
 		return parseFindArgs(args[1:])
+	case "list":
+		return parseListArgs(args[1:])
 	case "convert":
 		return parseConvertArgs(args[1:])
 	case "web":
@@ -143,6 +145,59 @@ func parseFindArgs(args []string) (CLIConfig, error) {
 
 	if cfg.Verbose > 0 {
 		cfg.ReportEmpty = true
+	}
+
+	return cfg, nil
+}
+
+func parseListArgs(args []string) (CLIConfig, error) {
+	cfg := CLIConfig{Command: "list"}
+	stopFlagParsing := false
+
+	for i := 0; i < len(args); i++ {
+		arg := strings.TrimSpace(args[i])
+		if arg == "" {
+			continue
+		}
+
+		if stopFlagParsing {
+			cfg.Rulesets = append(cfg.Rulesets, arg)
+			continue
+		}
+
+		handled, next, err := parseDatabaseArg(&cfg, args, i, arg)
+		if err != nil {
+			return CLIConfig{}, err
+		}
+		if handled {
+			i = next
+			continue
+		}
+
+		switch {
+		case arg == "--":
+			stopFlagParsing = true
+		case strings.HasPrefix(arg, "--json="):
+			cfg.JSONPath = strings.TrimSpace(strings.TrimPrefix(arg, "--json="))
+			if cfg.JSONPath == "" {
+				return CLIConfig{}, errors.New("--json requires a non-empty path")
+			}
+		case arg == "--json":
+			value, next, err := consumeNextArg(args, i, "--json")
+			if err != nil {
+				return CLIConfig{}, err
+			}
+			cfg.JSONPath = value
+			i = next
+		case strings.HasPrefix(arg, "-"):
+			return CLIConfig{}, fmt.Errorf("unknown flag: %s", arg)
+		default:
+			cfg.Rulesets = append(cfg.Rulesets, arg)
+		}
+	}
+
+	if len(cfg.Rulesets) == 0 {
+		return CLIConfig{}, errors.New("list requires at least one ruleset name")
 	}
 
 	return cfg, nil

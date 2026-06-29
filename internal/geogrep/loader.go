@@ -27,20 +27,60 @@ type singRuleSet struct {
 type singRuleNode struct {
 	Type           string         `json:"type" yaml:"type"`
 	Category       string         `json:"category" yaml:"category"`
-	Domain         []string       `json:"domain" yaml:"domain"`
-	DomainSuf      []string       `json:"domain_suffix" yaml:"domain_suffix"`
-	DomainKey      []string       `json:"domain_keyword" yaml:"domain_keyword"`
-	DomainRegex    []string       `json:"domain_regex" yaml:"domain_regex"`
-	DomainWildcard []string       `json:"domain_wildcard" yaml:"domain_wildcard"`
-	AdGuardDomain  []string       `json:"adguard_domain" yaml:"adguard_domain"`
-	IPCIDR         []string       `json:"ip_cidr" yaml:"ip_cidr"`
-	SourceCIDR     []string       `json:"source_ip_cidr" yaml:"source_ip_cidr"`
+	Domain         stringList     `json:"domain" yaml:"domain"`
+	DomainSuf      stringList     `json:"domain_suffix" yaml:"domain_suffix"`
+	DomainKey      stringList     `json:"domain_keyword" yaml:"domain_keyword"`
+	DomainRegex    stringList     `json:"domain_regex" yaml:"domain_regex"`
+	DomainWildcard stringList     `json:"domain_wildcard" yaml:"domain_wildcard"`
+	AdGuardDomain  stringList     `json:"adguard_domain" yaml:"adguard_domain"`
+	IPCIDR         stringList     `json:"ip_cidr" yaml:"ip_cidr"`
+	SourceCIDR     stringList     `json:"source_ip_cidr" yaml:"source_ip_cidr"`
 	Rules          []singRuleNode `json:"rules" yaml:"rules"`
 }
 
 type listPayload struct {
 	Payload []string `json:"payload" yaml:"payload"`
 	Rules   []string `json:"rules" yaml:"rules"`
+}
+
+type stringList []string
+
+func (l *stringList) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte("null")) {
+		*l = nil
+		return nil
+	}
+	var many []string
+	if err := json.Unmarshal(data, &many); err == nil {
+		*l = many
+		return nil
+	}
+	var one string
+	if err := json.Unmarshal(data, &one); err == nil {
+		*l = []string{one}
+		return nil
+	}
+	return errors.New("expected string or string array")
+}
+
+func (l *stringList) UnmarshalYAML(value *yaml.Node) error {
+	switch value.Kind {
+	case yaml.SequenceNode:
+		var many []string
+		if err := value.Decode(&many); err != nil {
+			return err
+		}
+		*l = many
+	case yaml.ScalarNode:
+		var one string
+		if err := value.Decode(&one); err != nil {
+			return err
+		}
+		*l = []string{one}
+	default:
+		return errors.New("expected string or string array")
+	}
+	return nil
 }
 
 const (

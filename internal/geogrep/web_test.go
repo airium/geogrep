@@ -21,8 +21,8 @@ func TestHandleShareRedirectAuto(t *testing.T) {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
 	}
 	location := rr.Header().Get("Location")
-	if location != "/?type=auto&q=google.com" {
-		t.Fatalf("location=%s want=/?type=auto&q=google.com", location)
+	if location != "/?mode=find&type=auto&q=google.com" {
+		t.Fatalf("location=%s want=/?mode=find&type=auto&q=google.com", location)
 	}
 }
 
@@ -37,8 +37,8 @@ func TestHandleShareRedirectCIDR(t *testing.T) {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
 	}
 	location := rr.Header().Get("Location")
-	if location != "/?type=ipv4&q=1.1.1.0%2F24" {
-		t.Fatalf("location=%s want=/?type=ipv4&q=1.1.1.0%%2F24", location)
+	if location != "/?mode=find&type=ipv4&q=1.1.1.0%2F24" {
+		t.Fatalf("location=%s want=/?mode=find&type=ipv4&q=1.1.1.0%%2F24", location)
 	}
 }
 
@@ -55,6 +55,22 @@ func TestHandleShareRedirectInvalidType(t *testing.T) {
 	location := rr.Header().Get("Location")
 	if location != "/" {
 		t.Fatalf("location=%s want=/", location)
+	}
+}
+
+func TestHandleShareRedirectList(t *testing.T) {
+	runtime := &webRuntime{}
+	req := httptest.NewRequest(http.MethodGet, "/find/list/cn", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleShareRedirect(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
+	}
+	location := rr.Header().Get("Location")
+	if location != "/?mode=list&q=cn" {
+		t.Fatalf("location=%s want=/?mode=list&q=cn", location)
 	}
 }
 
@@ -100,6 +116,68 @@ func TestAPIFindDomainHandler(t *testing.T) {
 	}
 	if len(payload.Result.Diagnostics) != 0 {
 		t.Fatalf("diagnostics=%d want=0", len(payload.Result.Diagnostics))
+	}
+}
+
+func TestAPIListHandler(t *testing.T) {
+	runtime := &webRuntime{
+		discovery: DiscoveryResult{Databases: []DiscoveredDatabase{{Name: "geoip.dat"}}},
+		databases: []LoadedDatabase{{
+			Name: "geoip.dat",
+			Sources: []LoadedSource{{
+				Display: "geoip.dat",
+				Format:  "dat",
+				GeoIPRules: []GeoIPRule{{
+					SubEntry: "CN",
+					Rule:     "1.0.1.0/24",
+				}},
+			}},
+		}},
+		diagnostics: []Diagnostic{{
+			Level:   "warning",
+			Scope:   "foo",
+			Message: "bar",
+		}},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/list/cn", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleAPIList(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+
+	var payload apiListResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if payload.Request.Ruleset != "cn" {
+		t.Fatalf("request.ruleset=%s want=cn", payload.Request.Ruleset)
+	}
+	if payload.Result.Metadata.RulesetCount != 1 {
+		t.Fatalf("ruleset_count=%d want=1", payload.Result.Metadata.RulesetCount)
+	}
+	if len(payload.Result.Results) != 1 || len(payload.Result.Results[0].Rules) != 1 {
+		t.Fatalf("results=%#v want one rule", payload.Result.Results)
+	}
+	if payload.Result.Results[0].Rules[0].Ruleset != "CN" {
+		t.Fatalf("matched ruleset=%s want=CN", payload.Result.Results[0].Rules[0].Ruleset)
+	}
+	if len(payload.Result.Diagnostics) != 0 {
+		t.Fatalf("diagnostics=%d want=0", len(payload.Result.Diagnostics))
+	}
+}
+
+func TestAPIListHandlerMissingRuleset(t *testing.T) {
+	runtime := &webRuntime{}
+	req := httptest.NewRequest(http.MethodGet, "/api/list", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleMissingListRuleset(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusBadRequest)
 	}
 }
 
@@ -168,6 +246,9 @@ func TestHandleOpenAPI(t *testing.T) {
 	}
 	if !strings.Contains(body, "\"/health\"") {
 		t.Fatalf("expected /health path in schema, got: %s", body)
+	}
+	if !strings.Contains(body, "\"/api/list/{ruleset}\"") {
+		t.Fatalf("expected /api/list path in schema, got: %s", body)
 	}
 }
 
