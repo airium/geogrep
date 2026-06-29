@@ -38,7 +38,9 @@ Important paths:
   directory is the database, each direct file is the ruleset, and each file
   line is a rule.
 - `convert` supports `-i/--input`, `-o/--output`, and `--to`.
-- `web` defaults to `0.0.0.0:8080`.
+- `web` defaults to `127.0.0.1:8080` for normal and production runs.
+- `GEOGREP_ENV=development` or `GEOGREP_ENV=dev` changes the default web
+  listen address to `0.0.0.0:8080`; `-l`/`--listen` overrides both defaults.
 - API routes are stable:
   - `/health`
   - `/openapi.json`
@@ -73,7 +75,7 @@ Use `gofmt` for Go changes. Prefer `go test ./...` after code changes.
 For web development with the workspace database directory:
 
 ```bash
-go run ./cmd/geogrep web -db ./db -l 0.0.0.0:18080
+GEOGREP_ENV=development go run ./cmd/geogrep web -db ./db -l 0.0.0.0:18080
 ```
 
 If that workspace path is unavailable, use an explicit supported test database

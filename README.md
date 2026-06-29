@@ -75,11 +75,17 @@ Prepare a directory of geodata files, then run:
 Start the web UI and API:
 
 ```bash
-# Listen on all interfaces, useful for LAN development.
-./geogrep web -db <dir/to/db> -l 0.0.0.0:8080
+# Production default listens on loopback only.
+./geogrep web -db <dir/to/db>
+
+# Development default listens on all interfaces, useful for LAN testing.
+GEOGREP_ENV=development ./geogrep web -db <dir/to/db>
 
 # API-only mode disables UI routes.
 ./geogrep web -db <dir/to/db> --api-only
+
+# Override the listen address explicitly.
+./geogrep web -db <dir/to/db> -l 0.0.0.0:8080
 
 # Use a custom static UI directory instead of the embedded UI.
 ./geogrep web -db <dir/to/db> --webui ./my-webui
@@ -123,7 +129,8 @@ Options:
 - `--to FORMAT`: output format for `convert`. If omitted, the format is
   inferred from the output extension.
 - `-l`, `--listen IP:PORT`: listen address for `web` (default
-  `0.0.0.0:8080`).
+  `127.0.0.1:8080`, or `0.0.0.0:8080` when `GEOGREP_ENV=development` or
+  `GEOGREP_ENV=dev`).
 - `--webui PATH`: serve static UI files from a directory instead of the embedded
   UI.
 - `--api-only`: serve only API endpoints.
@@ -132,6 +139,11 @@ Options:
 
 `geogrep web` loads databases once at startup, then serves lookup and ruleset
 listing over HTTP.
+
+By default, `geogrep web` listens on `127.0.0.1:8080`. Set
+`GEOGREP_ENV=development` or `GEOGREP_ENV=dev` to default to `0.0.0.0:8080`
+for LAN-visible development, or pass `-l/--listen` to choose an explicit
+address.
 
 Routes:
 

@@ -100,7 +100,10 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 
 ### Web Service
 
-- `geogrep web` starts an HTTP server on `0.0.0.0:8080` by default.
+- `geogrep web` starts an HTTP server on `127.0.0.1:8080` by default.
+- `GEOGREP_ENV=development` or `GEOGREP_ENV=dev` changes the default web
+  listen address to `0.0.0.0:8080` for LAN-visible development.
+- `-l`/`--listen` overrides either default listen address.
 - API endpoints:
   - `GET /health`
   - `GET /openapi.json`

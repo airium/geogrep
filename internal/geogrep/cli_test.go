@@ -78,6 +78,8 @@ func TestParseCLIArgsListRequiresRuleset(t *testing.T) {
 }
 
 func TestParseCLIArgsWebDefaults(t *testing.T) {
+	t.Setenv("GEOGREP_ENV", "")
+
 	cfg, err := parseCLIArgs([]string{"web"})
 	if err != nil {
 		t.Fatalf("parseCLIArgs returned error: %v", err)
@@ -85,15 +87,29 @@ func TestParseCLIArgsWebDefaults(t *testing.T) {
 	if cfg.Command != "web" {
 		t.Fatalf("command=%s want=web", cfg.Command)
 	}
-	if cfg.ListenAddr != "0.0.0.0:8080" {
-		t.Fatalf("listen=%s want=0.0.0.0:8080", cfg.ListenAddr)
+	if cfg.ListenAddr != "127.0.0.1:8080" {
+		t.Fatalf("listen=%s want=127.0.0.1:8080", cfg.ListenAddr)
 	}
 	if cfg.ReportEmpty {
 		t.Fatal("ReportEmpty should be false by default")
 	}
 }
 
+func TestParseCLIArgsWebDevelopmentDefault(t *testing.T) {
+	t.Setenv("GEOGREP_ENV", "development")
+
+	cfg, err := parseCLIArgs([]string{"web"})
+	if err != nil {
+		t.Fatalf("parseCLIArgs returned error: %v", err)
+	}
+	if cfg.ListenAddr != "0.0.0.0:8080" {
+		t.Fatalf("listen=%s want=0.0.0.0:8080", cfg.ListenAddr)
+	}
+}
+
 func TestParseCLIArgsWebFlags(t *testing.T) {
+	t.Setenv("GEOGREP_ENV", "development")
+
 	cfg, err := parseCLIArgs([]string{
 		"web",
 		"-db", "/tmp/db",

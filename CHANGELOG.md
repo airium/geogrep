@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- `geogrep web` now defaults to `127.0.0.1:8080` for normal and production
+  runs, while `GEOGREP_ENV=development` or `GEOGREP_ENV=dev` defaults to
+  `0.0.0.0:8080` for LAN-visible development.
+
 ## [0.4.0] - 2026-06-29
 
 ### Added

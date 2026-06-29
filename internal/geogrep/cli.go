@@ -4,8 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
+)
+
+const (
+	defaultWebListenAddr     = "127.0.0.1:8080"
+	developmentWebListenAddr = "0.0.0.0:8080"
 )
 
 func parseCLIArgs(args []string) (CLIConfig, error) {
@@ -295,7 +301,7 @@ func parseConvertArgs(args []string) (CLIConfig, error) {
 func parseWebArgs(args []string) (CLIConfig, error) {
 	cfg := CLIConfig{
 		Command:    "web",
-		ListenAddr: "0.0.0.0:8080",
+		ListenAddr: defaultWebListenAddrForEnv(),
 	}
 
 	for i := 0; i < len(args); i++ {
@@ -366,6 +372,15 @@ func parseWebArgs(args []string) (CLIConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+func defaultWebListenAddrForEnv() string {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("GEOGREP_ENV"))) {
+	case "dev", "development":
+		return developmentWebListenAddr
+	default:
+		return defaultWebListenAddr
+	}
 }
 
 func parseVerboseArg(cfg *CLIConfig, arg string) (bool, error) {
