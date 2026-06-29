@@ -104,6 +104,7 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - Dependency-free static UI embedded into the Go binary.
 - Kumo-inspired layout with sidebar navigation, page header, compact lookup
   controls, endpoint reference, examples panel, and metrics.
+- Runtime version display loaded from the local `/health` endpoint.
 - Results render as dense database match rows with badges, expandable overflow,
   copy buttons, and raw JSON inspection.
 - The UI preserves existing API and share-link behavior.
@@ -162,8 +163,8 @@ The project history is compact and linear:
     list/txt, `.dat`, singgeo `.db`, `.srs`, `.mrs`, and `.mmdb` outputs.
 - `build(release): bump version to 0.3.1`
   - Released loader validation hardening, atomic conversion output replacement,
-    improved invalid-rule reporting, AdGuard domain matcher behavior, and shared
-    development workflow guidance.
+    improved invalid-rule reporting, AdGuard domain matcher behavior, embedded
+    web UI runtime version display, and shared development workflow guidance.
 
 ## Non-Goals and Limits
 

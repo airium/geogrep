@@ -253,6 +253,15 @@
       font-size: 0.8125rem;
     }
 
+    .footer-version {
+      display: block;
+      margin-top: 4px;
+      color: var(--text-color-kumo-default);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      overflow-wrap: anywhere;
+    }
+
     .workspace {
       min-width: 0;
       padding: 28px;
@@ -321,8 +330,24 @@
     .header-actions {
       display: flex;
       flex-wrap: wrap;
+      align-items: center;
       gap: 8px;
       justify-content: flex-end;
+    }
+
+    .version-chip {
+      display: inline-flex;
+      min-height: 30px;
+      align-items: center;
+      border-radius: 999px;
+      background: var(--color-kumo-fill);
+      color: var(--text-color-kumo-default);
+      font-family: var(--mono);
+      font-size: 0.8125rem;
+      font-weight: 650;
+      line-height: 1;
+      padding: 0 10px;
+      white-space: nowrap;
     }
 
     .content-grid {
@@ -1087,7 +1112,10 @@
         </ul>
       </section>
 
-      <p class="sidebar-footer">Embedded UI backed by the local geogrep HTTP API.</p>
+      <p class="sidebar-footer">
+        Embedded UI backed by the local geogrep HTTP API.
+        <span id="sidebar-version" class="footer-version" data-version-label>version loading</span>
+      </p>
     </aside>
 
     <main class="workspace">
@@ -1106,6 +1134,7 @@
               <p class="page-description">Search IP, CIDR, domain, or keyword values through the same matching engine as <code>geogrep find</code>.</p>
             </div>
             <div class="header-actions">
+              <span id="runtime-version" class="version-chip" data-version-label aria-label="geogrep runtime version">version loading</span>
               <a class="button" data-kumo-component="LinkButton" href="https://github.com/airium/geogrep" target="_blank" rel="noreferrer">
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path d="M7 7h10v10"></path>
@@ -1232,7 +1261,7 @@
           </aside>
         </div>
 
-        <p class="page-foot"><a href="https://github.com/airium/geogrep" target="_blank" rel="noreferrer">geogrep</a> embedded web UI</p>
+        <p class="page-foot"><a href="https://github.com/airium/geogrep" target="_blank" rel="noreferrer">geogrep</a> embedded web UI - <span data-version-label>version loading</span></p>
       </div>
     </main>
   </div>
@@ -1258,6 +1287,7 @@
       var emptyStateEl = document.getElementById("empty-state");
       var emptyTitleEl = document.getElementById("empty-title");
       var emptyBodyEl = document.getElementById("empty-body");
+      var versionLabelEls = Array.prototype.slice.call(document.querySelectorAll("[data-version-label]"));
 
       var currentShareURL = "";
       var currentAPIURL = "";
@@ -1503,6 +1533,26 @@
           .replace(/'/g, "&#39;");
       }
 
+      function setVersionLabels(text) {
+        versionLabelEls.forEach(function (el) {
+          el.textContent = text;
+        });
+      }
+
+      async function loadRuntimeVersion() {
+        try {
+          var response = await fetch("/health", { method: "GET", headers: { "Accept": "application/json" } });
+          if (!response.ok) {
+            throw new Error("health check failed");
+          }
+          var payload = await response.json();
+          var version = payload && payload.version ? String(payload.version).trim() : "";
+          setVersionLabels(version ? "version " + version : "version unavailable");
+        } catch (_) {
+          setVersionLabels("version unavailable");
+        }
+      }
+
       async function runLookup(shouldUpdateHistory) {
         clearStatus();
 
@@ -1605,6 +1655,8 @@
       typeEl.addEventListener("change", function () {
         setMetrics(sanitizeType(typeEl.value), metricDatabasesEl.textContent, metricRulesEl.textContent);
       });
+
+      loadRuntimeVersion();
 
       (function bootFromURL() {
         var params = new URLSearchParams(window.location.search);

@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Embedded web UI now displays the running geogrep version from `/health`.
 - Binary rule loaders now reject oversized singgeo and SRS length fields before
   allocating memory.
 - Loader failures no longer leave partially parsed rules active for lookup or

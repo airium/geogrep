@@ -146,6 +146,7 @@ Built-in UI behavior:
 - Root `/` serves the embedded static UI unless `--api-only` is set.
 - The UI can search all API modes, copy share/API URLs, expand long match
   groups, and inspect the raw JSON response.
+- The UI displays the running geogrep version reported by `/health`.
 - Share redirects auto-run the lookup when opened in a browser.
 - The embedded UI is dependency-free and lives in
   [internal/geogrep/webui/index.html](internal/geogrep/webui/index.html).

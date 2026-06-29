@@ -146,6 +146,9 @@ func TestHandleHealth(t *testing.T) {
 	if payload.DatabaseCnt != 2 {
 		t.Fatalf("database_count=%d want=2", payload.DatabaseCnt)
 	}
+	if payload.Version != Version {
+		t.Fatalf("version=%s want=%s", payload.Version, Version)
+	}
 }
 
 func TestHandleOpenAPI(t *testing.T) {
@@ -165,6 +168,23 @@ func TestHandleOpenAPI(t *testing.T) {
 	}
 	if !strings.Contains(body, "\"/health\"") {
 		t.Fatalf("expected /health path in schema, got: %s", body)
+	}
+}
+
+func TestEmbeddedWebUIShowsRuntimeVersion(t *testing.T) {
+	content, err := fs.ReadFile(embeddedWebUI, "webui/index.html")
+	if err != nil {
+		t.Fatalf("read embedded webui: %v", err)
+	}
+	html := string(content)
+	if !strings.Contains(html, "data-version-label") {
+		t.Fatal("expected version label placeholder in embedded UI")
+	}
+	if !strings.Contains(html, `fetch("/health"`) {
+		t.Fatal("expected embedded UI to load runtime version from /health")
+	}
+	if !strings.Contains(html, `"version " + version`) {
+		t.Fatal("expected embedded UI to render returned version")
 	}
 }
 
