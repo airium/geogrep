@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-30
+
 ### Changed
 
 - `geogrep web` now defaults to `127.0.0.1:8080` for normal and production
