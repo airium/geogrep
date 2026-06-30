@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 )
@@ -37,6 +36,10 @@ type ListDocument struct {
 	Diagnostics []Diagnostic    `json:"diagnostics,omitempty"`
 }
 
+type listOptions struct {
+	IncludeMMDB bool
+}
+
 func runList(cfg CLIConfig) int {
 	discovery, err := resolveDiscovery(cfg)
 	if err != nil {
@@ -53,7 +56,10 @@ func runList(cfg CLIConfig) int {
 		printDiagnostics(diagnostics)
 	}
 
-	results := listRulesets(databases, cfg.Rulesets)
+	opts := resolveListOptions(databases, listOptions{IncludeMMDB: cfg.IncludeMMDB})
+	printListMMDBNotice(databases, cfg.IncludeMMDB, opts.IncludeMMDB)
+
+	results := listRulesetsWithOptions(databases, cfg.Rulesets, opts)
 	printListResults(results)
 
 	if cfg.JSONPath != "" {
@@ -68,13 +74,19 @@ func runList(cfg CLIConfig) int {
 }
 
 func listRulesets(databases []LoadedDatabase, rulesets []string) []listedRuleset {
+	return listRulesetsWithOptions(databases, rulesets, listOptions{})
+}
+
+func listRulesetsWithOptions(databases []LoadedDatabase, rulesets []string, opts listOptions) []listedRuleset {
+	opts = resolveListOptions(databases, opts)
+
 	results := make([]listedRuleset, 0, len(rulesets))
 	for _, ruleset := range rulesets {
 		ruleset = strings.TrimSpace(ruleset)
 		result := listedRuleset{Ruleset: ruleset}
 		for _, db := range databases {
 			for _, source := range db.Sources {
-				result.Rules = append(result.Rules, listSourceRules(db.Name, source, ruleset)...)
+				result.Rules = append(result.Rules, listSourceRules(db.Name, source, ruleset, opts)...)
 			}
 		}
 		results = append(results, result)
@@ -82,7 +94,7 @@ func listRulesets(databases []LoadedDatabase, rulesets []string) []listedRuleset
 	return results
 }
 
-func listSourceRules(dbName string, source LoadedSource, requestedRuleset string) []listedRule {
+func listSourceRules(dbName string, source LoadedSource, requestedRuleset string, opts listOptions) []listedRule {
 	rules := make([]listedRule, 0)
 	for _, rule := range source.GeoIPRules {
 		if matchedRuleset, ok := matchRuleRuleset(rule.SubEntry, dbName, source, requestedRuleset); ok {
@@ -94,42 +106,55 @@ func listSourceRules(dbName string, source LoadedSource, requestedRuleset string
 			rules = append(rules, newListedRule(dbName, source, matchedRuleset, rule.Rule))
 		}
 	}
-	if source.MMDB != nil {
-		rules = append(rules, listMMDBRules(dbName, source, requestedRuleset)...)
+	if opts.IncludeMMDB && source.MMDB != nil {
+		rules = append(rules, listMMDBRulesCached(dbName, source, requestedRuleset)...)
 	}
 	return rules
 }
 
-func listMMDBRules(dbName string, source LoadedSource, requestedRuleset string) []listedRule {
-	rules := make([]GeoIPRule, 0)
-	for result := range source.MMDB.Reader.Networks() {
-		if err := result.Err(); err != nil {
-			continue
-		}
-		var payload any
-		if err := result.Decode(&payload); err != nil || payload == nil {
-			continue
-		}
-		rules = append(rules, GeoIPRule{
-			SubEntry: deriveMMDBSubEntry(payload),
-			Rule:     result.Prefix().Masked().String(),
-			Prefix:   result.Prefix().Masked(),
-		})
+func resolveListOptions(databases []LoadedDatabase, opts listOptions) listOptions {
+	if opts.IncludeMMDB {
+		return opts
 	}
-	sort.SliceStable(rules, func(i, j int) bool {
-		if rules[i].SubEntry != rules[j].SubEntry {
-			return rules[i].SubEntry < rules[j].SubEntry
-		}
-		return rules[i].Prefix.String() < rules[j].Prefix.String()
-	})
+	if onlyMMDBDatabaseType(databases) {
+		opts.IncludeMMDB = true
+	}
+	return opts
+}
 
-	listed := make([]listedRule, 0, len(rules))
-	for _, rule := range rules {
-		if matchedRuleset, ok := matchRuleRuleset(rule.SubEntry, dbName, source, requestedRuleset); ok {
-			listed = append(listed, newListedRule(dbName, source, matchedRuleset, rule.Rule))
+func onlyMMDBDatabaseType(databases []LoadedDatabase) bool {
+	sourceCount := 0
+	for _, db := range databases {
+		for _, source := range db.Sources {
+			sourceType := listSourceDatabaseType(source)
+			if sourceType == "" {
+				return false
+			}
+			sourceCount++
+			if sourceType != "mmdb" {
+				return false
+			}
 		}
 	}
-	return listed
+	return sourceCount > 0
+}
+
+func hasMMDBDatabaseType(databases []LoadedDatabase) bool {
+	for _, db := range databases {
+		for _, source := range db.Sources {
+			if listSourceDatabaseType(source) == "mmdb" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func listSourceDatabaseType(source LoadedSource) string {
+	if source.MMDB != nil {
+		return "mmdb"
+	}
+	return strings.ToLower(strings.TrimSpace(source.Format))
 }
 
 func matchRuleRuleset(subEntry, dbName string, source LoadedSource, requestedRuleset string) (string, bool) {
@@ -204,6 +229,17 @@ func printListStartup(discovery DiscoveryResult, rulesetCount int) {
 		mode = "executable directory fallback"
 	}
 	fmt.Printf("[geogrep] db_root=%s (%s) databases=%d rulesets=%d\n", discovery.RootDir, mode, len(discovery.Databases), rulesetCount)
+}
+
+func printListMMDBNotice(databases []LoadedDatabase, requestedIncludeMMDB, effectiveIncludeMMDB bool) {
+	if requestedIncludeMMDB || !hasMMDBDatabaseType(databases) {
+		return
+	}
+	if effectiveIncludeMMDB {
+		fmt.Println("[geogrep] only MMDB/MetaDB databases found; including MMDB list data automatically")
+		return
+	}
+	fmt.Println("[geogrep] MMDB/MetaDB databases skipped for list; add --include-mmdb to include them")
 }
 
 func printListResults(results []listedRuleset) {

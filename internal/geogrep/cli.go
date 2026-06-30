@@ -183,6 +183,8 @@ func parseListArgs(args []string) (CLIConfig, error) {
 		switch {
 		case arg == "--":
 			stopFlagParsing = true
+		case arg == "--include-mmdb":
+			cfg.IncludeMMDB = true
 		case strings.HasPrefix(arg, "--json="):
 			cfg.JSONPath = strings.TrimSpace(strings.TrimPrefix(arg, "--json="))
 			if cfg.JSONPath == "" {

@@ -74,6 +74,22 @@ func TestHandleShareRedirectList(t *testing.T) {
 	}
 }
 
+func TestHandleShareRedirectListIncludeMMDB(t *testing.T) {
+	runtime := &webRuntime{}
+	req := httptest.NewRequest(http.MethodGet, "/find/list/cn?include_mmdb=true", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleShareRedirect(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
+	}
+	location := rr.Header().Get("Location")
+	if location != "/?mode=list&q=cn&include_mmdb=true" {
+		t.Fatalf("location=%s want=/?mode=list&q=cn&include_mmdb=true", location)
+	}
+}
+
 func TestAPIFindDomainHandler(t *testing.T) {
 	runtime := &webRuntime{
 		cfg:       CLIConfig{ReportEmpty: true},
@@ -155,6 +171,9 @@ func TestAPIListHandler(t *testing.T) {
 	if payload.Request.Ruleset != "cn" {
 		t.Fatalf("request.ruleset=%s want=cn", payload.Request.Ruleset)
 	}
+	if payload.Request.IncludeMMDB {
+		t.Fatal("include_mmdb should default to false")
+	}
 	if payload.Result.Metadata.RulesetCount != 1 {
 		t.Fatalf("ruleset_count=%d want=1", payload.Result.Metadata.RulesetCount)
 	}
@@ -166,6 +185,56 @@ func TestAPIListHandler(t *testing.T) {
 	}
 	if len(payload.Result.Diagnostics) != 0 {
 		t.Fatalf("diagnostics=%d want=0", len(payload.Result.Diagnostics))
+	}
+}
+
+func TestAPIListHandlerIncludeMMDBQuery(t *testing.T) {
+	runtime := &webRuntime{
+		discovery: DiscoveryResult{Databases: []DiscoveredDatabase{{Name: "geoip.dat"}}},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/list/cn?include_mmdb=true", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleAPIList(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	var payload apiListResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if !payload.Request.IncludeMMDB {
+		t.Fatal("expected include_mmdb=true in response request")
+	}
+}
+
+func TestAPIListHandlerAutoIncludesMMDBOnlyDatabases(t *testing.T) {
+	runtime := &webRuntime{
+		discovery: DiscoveryResult{Databases: []DiscoveredDatabase{{Name: "geoip.mmdb"}}},
+		databases: []LoadedDatabase{{
+			Name: "geoip.mmdb",
+			Sources: []LoadedSource{{
+				Display: "geoip.mmdb",
+				Format:  "mmdb",
+				MMDB:    &MMDBSource{},
+			}},
+		}},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/list/cn", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleAPIList(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	var payload apiListResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if !payload.Request.IncludeMMDB {
+		t.Fatal("expected include_mmdb to be auto-enabled for MMDB-only databases")
 	}
 }
 

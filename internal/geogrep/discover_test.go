@@ -11,12 +11,19 @@ func TestDiscoverDatabases(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tmp, "geosite.dat"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	cacheData := []byte(`{"schema":"geogrep-mmdb-list-cache-v1","source":"geoip.mmdb","source_sha256":"abc","categories":{}}`)
+	if err := os.WriteFile(filepath.Join(tmp, "geoip.json"), cacheData, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	subDir := filepath.Join(tmp, "shopping-sites")
 	if err := os.MkdirAll(subDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(subDir, "ads.list"), []byte("example.com\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(subDir, "country.json"), cacheData, 0o644); err != nil {
 		t.Fatal(err)
 	}
 

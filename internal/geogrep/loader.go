@@ -151,7 +151,9 @@ func loadSource(src DiscoveredSource) (LoadedSource, []Diagnostic) {
 			loaded = candidate
 		}
 	case ".json":
-		if candidate, err := loadSourceWith(src, loadJSONRules); err != nil {
+		if isMMDBListCacheFile(src.Path) {
+			diagnostics = append(diagnostics, Diagnostic{Level: "warning", Scope: src.Display, Message: "generated MMDB list cache is not a ruleset"})
+		} else if candidate, err := loadSourceWith(src, loadJSONRules); err != nil {
 			diagnostics = append(diagnostics, Diagnostic{Level: "error", Scope: src.Display, Message: err.Error()})
 		} else {
 			loaded = candidate

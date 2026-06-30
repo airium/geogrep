@@ -52,7 +52,7 @@ func TestParseCLIArgsFindVerboseLevel(t *testing.T) {
 }
 
 func TestParseCLIArgsList(t *testing.T) {
-	cfg, err := parseCLIArgs([]string{"list", "--json", "/tmp/list.json", "-db", "/tmp/db", "lan", "private"})
+	cfg, err := parseCLIArgs([]string{"list", "--include-mmdb", "--json", "/tmp/list.json", "-db", "/tmp/db", "lan", "private"})
 	if err != nil {
 		t.Fatalf("parseCLIArgs returned error: %v", err)
 	}
@@ -64,6 +64,9 @@ func TestParseCLIArgsList(t *testing.T) {
 	}
 	if cfg.JSONPath != "/tmp/list.json" {
 		t.Fatalf("json=%s want=/tmp/list.json", cfg.JSONPath)
+	}
+	if !cfg.IncludeMMDB {
+		t.Fatal("expected IncludeMMDB=true")
 	}
 	if len(cfg.Rulesets) != 2 || cfg.Rulesets[0] != "lan" || cfg.Rulesets[1] != "private" {
 		t.Fatalf("rulesets=%v want [lan private]", cfg.Rulesets)

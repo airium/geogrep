@@ -9,6 +9,14 @@ All notable changes to this project will be documented in this file.
 - `geogrep web` now defaults to `127.0.0.1:8080` for normal and production
   runs, while `GEOGREP_ENV=development` or `GEOGREP_ENV=dev` defaults to
   `0.0.0.0:8080` for LAN-visible development.
+- `geogrep list` now skips MMDB/MetaDB sources by default when other database
+  types are loaded, prints a CLI hint for `--include-mmdb`, and auto-includes
+  MMDB/MetaDB data when it is the only loaded database type.
+- MMDB/MetaDB ruleset listing now uses a compact sibling
+  `<filename-stem>.json` category cache with the source file SHA-256, and
+  generated cache files are ignored during database discovery/loading.
+- Web UI and `GET /api/list/<ruleset>` now support `include_mmdb=true` for
+  opting into MMDB/MetaDB list output.
 
 ## [0.4.0] - 2026-06-29
 

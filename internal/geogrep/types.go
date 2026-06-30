@@ -51,6 +51,7 @@ type CLIConfig struct {
 	ConvertTo   string
 	Rulesets    []string
 	ReportEmpty bool
+	IncludeMMDB bool
 	Verbose     int
 	ListenAddr  string
 	WebUIPath   string

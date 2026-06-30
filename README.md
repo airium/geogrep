@@ -98,7 +98,7 @@ geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db|--database DB_DIR|DB_F
   [-4 IPv4_OR_CIDR] [-6 IPv6_OR_CIDR6] [-d DOMAIN] [-k KEYWORD] \
   [IP_OR_CIDR_OR_DOMAIN_OR_KEYWORD ...]
 
-geogrep list [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] RULESET_NAME [...]
+geogrep list [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] RULESET_NAME [...]
 
 geogrep convert -i INPUT_PATH -o OUTPUT_PATH [--to FORMAT]
 
@@ -115,6 +115,10 @@ Options:
   If omitted, `geogrep` scans the current directory. If that yields no
   supported files, it falls back to the executable directory.
 - `--json PATH`: write structured JSON output for `find` or `list`.
+- `--include-mmdb`: include MMDB/MetaDB data in `list` output. This is enabled
+  automatically when MMDB/MetaDB is the only loaded database type. When enabled,
+  geogrep may create a sibling `<filename-stem>.json` category cache with the
+  source file SHA-256 and silently skip cache writes on error.
 - `-v`, `--verbose`, `--verbose=N`: increase verbosity. Level `>= 1` enables
   explicit per-database no-match records.
 - `-4 VALUE`: force IPv4 or IPv4 CIDR parsing.
@@ -154,7 +158,8 @@ Routes:
 - `GET /api/find/ipv6/<IP_or_CIDR>`
 - `GET /api/find/domain/<domain>`
 - `GET /api/find/keyword/<keyword>`
-- `GET /api/list/<ruleset>`
+- `GET /api/list/<ruleset>`; add `?include_mmdb=true` to include MMDB/MetaDB
+  list output when it is not auto-included.
 - `GET /find/<type>/<value>` redirects to the UI with
   `?mode=find&type=<type>&q=<value>`.
 - `GET /find/list/<ruleset>` redirects to the UI with
@@ -169,13 +174,15 @@ curl "http://127.0.0.1:8080/api/find/auto/1.1.1.1"
 curl "http://127.0.0.1:8080/api/find/domain/google.com"
 curl "http://127.0.0.1:8080/api/find/ipv4/1.1.1.0/24"
 curl "http://127.0.0.1:8080/api/list/cn"
+curl "http://127.0.0.1:8080/api/list/cn?include_mmdb=true"
 ```
 
 Built-in UI behavior:
 
 - Root `/` serves the embedded static UI unless `--api-only` is set.
-- The UI can search all lookup modes, list rulesets, copy share/API URLs,
-  expand long result groups, and inspect the raw JSON response.
+- The UI can search all lookup modes, list rulesets, toggle MMDB list output,
+  copy share/API URLs, expand long result groups, and inspect the raw JSON
+  response.
 - The UI displays the running geogrep version reported by `/health`.
 - Share redirects auto-run the lookup or ruleset listing when opened in a
   browser.
@@ -291,7 +298,8 @@ Stdout output includes, for each input:
 Rulesets are matched by full loaded GeoIP/geosite category name,
 case-insensitively, so `cn` matches `CN`. Uncategorized sparse files use the
 source filename or filename stem as the ruleset name, while the containing
-directory remains the database.
+directory remains the database. MMDB/MetaDB sources are skipped unless
+`--include-mmdb` is set or MMDB/MetaDB is the only loaded database type.
 
 JSON export includes:
 

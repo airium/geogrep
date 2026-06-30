@@ -44,7 +44,8 @@ type apiFindResponse struct {
 }
 
 type apiListRequest struct {
-	Ruleset string `json:"ruleset"`
+	Ruleset     string `json:"ruleset"`
+	IncludeMMDB bool   `json:"include_mmdb"`
 }
 
 type apiListResponse struct {
@@ -251,6 +252,17 @@ func makeListOperation() map[string]any {
 				},
 				"example": "cn",
 			},
+			{
+				"name":        "include_mmdb",
+				"in":          "query",
+				"required":    false,
+				"description": "Include MMDB/MetaDB data using a generated category cache",
+				"schema": map[string]any{
+					"type":    "boolean",
+					"default": false,
+				},
+				"example": true,
+			},
 		},
 		"responses": map[string]any{
 			"200": map[string]any{"description": "Ruleset listing"},
@@ -313,18 +325,30 @@ func (s *webRuntime) handleAPIList(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusRequestURITooLong, "ruleset too long")
 		return
 	}
+	includeMMDB := parseBoolQuery(r.URL.Query().Get("include_mmdb")) ||
+		parseBoolQuery(r.URL.Query().Get("includeMMDB"))
+	opts := resolveListOptions(s.databases, listOptions{IncludeMMDB: includeMMDB})
 
 	s.lookupMu.Lock()
-	results := listRulesets(s.databases, []string{ruleset})
+	results := listRulesetsWithOptions(s.databases, []string{ruleset}, opts)
 	s.lookupMu.Unlock()
 
 	// Avoid leaking loader/runtime internals in public API responses.
 	document := buildListDocument(s.discovery, results, nil)
 	response := apiListResponse{
-		Request: apiListRequest{Ruleset: ruleset},
+		Request: apiListRequest{Ruleset: ruleset, IncludeMMDB: opts.IncludeMMDB},
 		Result:  document,
 	}
 	writeAPIJSON(w, http.StatusOK, response)
+}
+
+func parseBoolQuery(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "t", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *webRuntime) handleMissingFindValue(w http.ResponseWriter, r *http.Request) {
@@ -435,6 +459,10 @@ func (s *webRuntime) handleShareRedirect(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		target := "/?mode=list&q=" + url.QueryEscape(value)
+		if parseBoolQuery(r.URL.Query().Get("include_mmdb")) ||
+			parseBoolQuery(r.URL.Query().Get("includeMMDB")) {
+			target += "&include_mmdb=true"
+		}
 		http.Redirect(w, r, target, http.StatusFound)
 		return
 	}

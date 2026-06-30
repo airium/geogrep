@@ -120,11 +120,15 @@ func discoverDatabases(root string) ([]DiscoveredDatabase, error) {
 		if !isSupportedDataFile(name) {
 			continue
 		}
+		path := filepath.Join(root, name)
+		if isMMDBListCacheFile(path) {
+			continue
+		}
 		dbs = append(dbs, DiscoveredDatabase{
 			Name: name,
 			Sources: []DiscoveredSource{{
 				Display: name,
-				Path:    filepath.Join(root, name),
+				Path:    path,
 			}},
 		})
 	}
@@ -156,9 +160,13 @@ func discoverDirectorySources(dirPath, dirName string) ([]DiscoveredSource, erro
 		if !isSupportedDataFile(entry.Name()) {
 			continue
 		}
+		path := filepath.Join(dirPath, entry.Name())
+		if isMMDBListCacheFile(path) {
+			continue
+		}
 		sources = append(sources, DiscoveredSource{
 			Display: filepath.ToSlash(filepath.Join(dirName, entry.Name())),
-			Path:    filepath.Join(dirPath, entry.Name()),
+			Path:    path,
 		})
 	}
 	return sources, nil

@@ -399,9 +399,32 @@
 
     .form-grid {
       display: grid;
-      grid-template-columns: 140px 180px minmax(260px, 1fr) auto;
+      grid-template-columns: 140px 180px minmax(260px, 1fr) auto auto;
       gap: 12px;
       align-items: end;
+    }
+
+    .list-options {
+      display: flex;
+      min-height: 36px;
+      align-items: center;
+      gap: 8px;
+      border-radius: var(--radius-kumo);
+      color: var(--text-color-kumo-default);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .list-options.hidden {
+      display: none;
+    }
+
+    .list-options input {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 16px;
+      padding: 0;
+      accent-color: var(--color-kumo-brand);
     }
 
     .field {
@@ -1179,6 +1202,10 @@
                     <label id="lookup-value-label" for="lookup-value">Query value</label>
                     <input id="lookup-value" name="q" placeholder="1.1.1.1, 1.1.1.0/24, example.com, google" data-kumo-component="Input" required>
                   </div>
+                  <label id="include-mmdb-field" class="list-options hidden" for="include-mmdb">
+                    <input id="include-mmdb" name="include_mmdb" type="checkbox">
+                    <span>Include MMDB</span>
+                  </label>
                   <button id="lookup-button" class="button primary" data-kumo-component="Button" type="submit">
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <circle cx="11" cy="11" r="7"></circle>
@@ -1283,6 +1310,8 @@
       var modeEl = document.getElementById("request-mode");
       var typeEl = document.getElementById("lookup-type");
       var valueEl = document.getElementById("lookup-value");
+      var includeMMDBEl = document.getElementById("include-mmdb");
+      var includeMMDBFieldEl = document.getElementById("include-mmdb-field");
       var valueLabelEl = document.getElementById("lookup-value-label");
       var buttonEl = document.getElementById("lookup-button");
       var buttonLabelEl = buttonEl.querySelector(".button-label") || buttonEl;
@@ -1320,16 +1349,24 @@
         return "auto";
       }
 
-      function buildAPIPath(mode, type, value) {
+      function buildAPIPath(mode, type, value, includeMMDB) {
         if (mode === "list") {
-          return "/api/list/" + encodeURIComponent(value);
+          var path = "/api/list/" + encodeURIComponent(value);
+          if (includeMMDB) {
+            path += "?include_mmdb=true";
+          }
+          return path;
         }
         return "/api/find/" + type + "/" + encodeURIComponent(value);
       }
 
-      function buildSharePath(mode, type, value) {
+      function buildSharePath(mode, type, value, includeMMDB) {
         if (mode === "list") {
-          return "/find/list/" + encodeURIComponent(value);
+          var path = "/find/list/" + encodeURIComponent(value);
+          if (includeMMDB) {
+            path += "?include_mmdb=true";
+          }
+          return path;
         }
         return "/find/" + type + "/" + encodeURIComponent(value);
       }
@@ -1338,15 +1375,15 @@
         return window.location.origin + pathname;
       }
 
-      function setLinks(mode, type, value) {
+      function setLinks(mode, type, value, includeMMDB) {
         if (!value) {
           currentShareURL = "";
           currentAPIURL = "";
           return;
         }
 
-        var sharePath = buildSharePath(mode, type, value);
-        var apiPath = buildAPIPath(mode, type, value);
+        var sharePath = buildSharePath(mode, type, value, includeMMDB);
+        var apiPath = buildAPIPath(mode, type, value, includeMMDB);
         currentShareURL = toAbsolute(sharePath);
         currentAPIURL = toAbsolute(apiPath);
       }
@@ -1355,6 +1392,7 @@
         var mode = sanitizeMode(modeEl.value);
         var isList = mode === "list";
         typeEl.disabled = isList;
+        includeMMDBFieldEl.classList.toggle("hidden", !isList);
         valueLabelEl.textContent = isList ? "Ruleset name" : "Query value";
         valueEl.placeholder = isList ? "cn, private, lan" : "1.1.1.1, 1.1.1.0/24, example.com, google";
         buttonLabelEl.textContent = isList ? "List rules" : "Run lookup";
@@ -1698,7 +1736,8 @@
         var mode = sanitizeMode(modeEl.value);
         var type = sanitizeType(typeEl.value);
         var value = valueEl.value.trim();
-        setLinks(mode, type, value);
+        var includeMMDB = mode === "list" && includeMMDBEl.checked;
+        setLinks(mode, type, value, includeMMDB);
         toggleCopyActions(false);
         setMetrics(mode === "list" ? "list" : type, 0, 0);
 
@@ -1711,12 +1750,12 @@
 
         if (shouldUpdateHistory) {
           var query = mode === "list"
-            ? "?mode=list&q=" + encodeURIComponent(value)
+            ? "?mode=list&q=" + encodeURIComponent(value) + (includeMMDB ? "&include_mmdb=true" : "")
             : "?mode=find&type=" + encodeURIComponent(type) + "&q=" + encodeURIComponent(value);
           window.history.replaceState(null, "", "/" + query);
         }
 
-        var apiPath = buildAPIPath(mode, type, value);
+        var apiPath = buildAPIPath(mode, type, value, includeMMDB);
         setStatus(mode === "list" ? "Listing..." : "Looking up...", "");
         showEmptyState(mode === "list" ? "List request running." : "Lookup running.", "Waiting for the API response.");
         matchesEl.innerHTML = "";
@@ -1816,13 +1855,15 @@
         var urlMode = sanitizeMode(params.get("mode") || "find");
         var urlType = sanitizeType(params.get("type") || "auto");
         var urlValue = (params.get("q") || "").trim();
+        var includeMMDB = params.get("include_mmdb") === "true" || params.get("include_mmdb") === "1";
 
         modeEl.value = urlMode;
         typeEl.value = urlType;
         valueEl.value = urlValue;
+        includeMMDBEl.checked = urlMode === "list" && includeMMDB;
         syncModeUI();
         setMetrics(urlMode === "list" ? "list" : urlType, 0, 0);
-        setLinks(urlMode, urlType, urlValue);
+        setLinks(urlMode, urlType, urlValue, includeMMDBEl.checked);
 
         if (urlValue) {
           runRequest(false);

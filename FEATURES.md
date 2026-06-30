@@ -19,8 +19,12 @@ capabilities added through the repository history.
 - Ruleset matching is exact by name and case-insensitive.
 - For grouped sparse files, the child directory is the database and each direct
   file is a ruleset; each file line is a rule.
-- Supports human-readable stdout, `--json`, `GET /api/list/<ruleset>`, and web
-  UI list mode.
+- MMDB/MetaDB sources are skipped by default when mixed with other database
+  types, can be included with `--include-mmdb`, and are auto-included when they
+  are the only loaded database type. Included MMDB lists use a generated
+  source-hash-checked cache.
+- Supports human-readable stdout, `--json`, `GET /api/list/<ruleset>`, the
+  `include_mmdb=true` API toggle, and web UI list mode.
 
 ### Input Modes
 
@@ -77,8 +81,9 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 
 - Human-readable stdout is grouped by input and database.
 - Match lines are consistently formatted as source, format, category, and rule.
-- `geogrep list [-db DB_DIR|DB_FILE] RULESET_NAME [...]` lists every rule from
-  exact, case-insensitive ruleset/category names across loaded databases.
+- `geogrep list [--include-mmdb] [-db DB_DIR|DB_FILE] RULESET_NAME [...]` lists
+  every rule from exact, case-insensitive ruleset/category names across loaded
+  databases.
 - `geogrep list --json PATH ...` writes structured list output for automation.
 - Verbose mode (`-v` or `--verbose`) enables explicit no-match reporting.
 - `--json PATH` writes structured metadata, query results, matches, optional
@@ -112,7 +117,7 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
   - `GET /api/find/ipv6/<IP_or_CIDR>`
   - `GET /api/find/domain/<domain>`
   - `GET /api/find/keyword/<keyword>`
-  - `GET /api/list/<ruleset>`
+  - `GET /api/list/<ruleset>` with optional `include_mmdb=true`
 - `--api-only` disables UI routes.
 - `--webui PATH` serves custom static UI files.
 - Share routes under `/find/<type>/<value>` redirect to the UI and auto-run
@@ -126,7 +131,8 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - Runtime version display loaded from the local `/health` endpoint.
 - Results render as dense database match rows with badges, expandable overflow,
   copy buttons, and raw JSON inspection.
-- Ruleset listing mode uses the same result surface and raw JSON inspection.
+- Ruleset listing mode uses the same result surface and raw JSON inspection,
+  with an MMDB include toggle.
 - The UI preserves existing API and share-link behavior.
 
 ### Web Hardening and Privacy
@@ -185,6 +191,10 @@ The project history is compact and linear:
   - Added `geogrep list`, list JSON export, `GET /api/list/<ruleset>`, web UI
     list mode, case-insensitive ruleset matching, and sparse-file ruleset
     listing semantics.
+- `fix: skip MMDB list data by default`
+  - Added explicit MMDB/MetaDB opt-in for list output, MMDB-only auto-inclusion,
+    compact source-hash-checked list caches, discovery ignores for generated
+    caches, and web/API include toggles.
 - `build(release): bump version to 0.3.1`
   - Released loader validation hardening, atomic conversion output replacement,
     improved invalid-rule reporting, AdGuard domain matcher behavior, embedded
