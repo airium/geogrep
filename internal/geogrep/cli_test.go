@@ -15,13 +15,13 @@ func TestParseCLIArgsVersionSubcommand(t *testing.T) {
 	}
 }
 
-func TestParseCLIArgsFindVerbose(t *testing.T) {
-	cfg, err := parseCLIArgs([]string{"find", "-v", "google.com"})
+func TestParseCLIArgsFindRuleVerbose(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"find-rule", "-v", "google.com"})
 	if err != nil {
 		t.Fatalf("parseCLIArgs returned error: %v", err)
 	}
-	if cfg.Command != "find" {
-		t.Fatalf("command=%s want=find", cfg.Command)
+	if cfg.Command != "find-rule" {
+		t.Fatalf("command=%s want=find-rule", cfg.Command)
 	}
 	if cfg.Verbose != 1 {
 		t.Fatalf("verbose=%d want=1", cfg.Verbose)
@@ -31,18 +31,21 @@ func TestParseCLIArgsFindVerbose(t *testing.T) {
 	}
 }
 
-func TestParseCLIArgsFindCompactVerbose(t *testing.T) {
-	cfg, err := parseCLIArgs([]string{"find", "-vv", "google.com"})
+func TestParseCLIArgsFindRuleShortcut(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"fr", "-vv", "google.com"})
 	if err != nil {
 		t.Fatalf("parseCLIArgs returned error: %v", err)
+	}
+	if cfg.Command != "find-rule" {
+		t.Fatalf("command=%s want=find-rule", cfg.Command)
 	}
 	if cfg.Verbose != 2 {
 		t.Fatalf("verbose=%d want=2", cfg.Verbose)
 	}
 }
 
-func TestParseCLIArgsFindVerboseLevel(t *testing.T) {
-	cfg, err := parseCLIArgs([]string{"find", "--verbose=3", "google.com"})
+func TestParseCLIArgsFindRuleVerboseLevel(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"find-rule", "--verbose=3", "google.com"})
 	if err != nil {
 		t.Fatalf("parseCLIArgs returned error: %v", err)
 	}
@@ -51,13 +54,13 @@ func TestParseCLIArgsFindVerboseLevel(t *testing.T) {
 	}
 }
 
-func TestParseCLIArgsList(t *testing.T) {
-	cfg, err := parseCLIArgs([]string{"list", "--include-mmdb", "--json", "/tmp/list.json", "-db", "/tmp/db", "lan", "private"})
+func TestParseCLIArgsListRule(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"list-rule", "--include-mmdb", "--json", "/tmp/list.json", "-db", "/tmp/db", "lan", "private"})
 	if err != nil {
 		t.Fatalf("parseCLIArgs returned error: %v", err)
 	}
-	if cfg.Command != "list" {
-		t.Fatalf("command=%s want=list", cfg.Command)
+	if cfg.Command != "list-rule" {
+		t.Fatalf("command=%s want=list-rule", cfg.Command)
 	}
 	if cfg.DBDir != "/tmp/db" {
 		t.Fatalf("db=%s want=/tmp/db", cfg.DBDir)
@@ -73,20 +76,33 @@ func TestParseCLIArgsList(t *testing.T) {
 	}
 }
 
-func TestParseCLIArgsListRequiresRuleset(t *testing.T) {
-	_, err := parseCLIArgs([]string{"list", "-db", "/tmp/db"})
+func TestParseCLIArgsListRuleShortcut(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"lr", "private"})
+	if err != nil {
+		t.Fatalf("parseCLIArgs returned error: %v", err)
+	}
+	if cfg.Command != "list-rule" {
+		t.Fatalf("command=%s want=list-rule", cfg.Command)
+	}
+	if len(cfg.Rulesets) != 1 || cfg.Rulesets[0] != "private" {
+		t.Fatalf("rulesets=%v want [private]", cfg.Rulesets)
+	}
+}
+
+func TestParseCLIArgsListRuleRequiresRuleset(t *testing.T) {
+	_, err := parseCLIArgs([]string{"list-rule", "-db", "/tmp/db"})
 	if err == nil {
 		t.Fatal("expected error for missing ruleset")
 	}
 }
 
-func TestParseCLIArgsListCategory(t *testing.T) {
-	cfg, err := parseCLIArgs([]string{"list-category", "--include-mmdb", "--json", "/tmp/categories.json", "-db", "/tmp/db", "cn", "^google$"})
+func TestParseCLIArgsFindCategory(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"find-category", "--include-mmdb", "--json", "/tmp/categories.json", "-db", "/tmp/db", "cn", "^google$"})
 	if err != nil {
 		t.Fatalf("parseCLIArgs returned error: %v", err)
 	}
-	if cfg.Command != "list-category" {
-		t.Fatalf("command=%s want=list-category", cfg.Command)
+	if cfg.Command != "find-category" {
+		t.Fatalf("command=%s want=find-category", cfg.Command)
 	}
 	if cfg.DBDir != "/tmp/db" {
 		t.Fatalf("db=%s want=/tmp/db", cfg.DBDir)
@@ -102,8 +118,21 @@ func TestParseCLIArgsListCategory(t *testing.T) {
 	}
 }
 
-func TestParseCLIArgsListCategoryRequiresPattern(t *testing.T) {
-	_, err := parseCLIArgs([]string{"list-category", "-db", "/tmp/db"})
+func TestParseCLIArgsFindCategoryShortcut(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"fc", "^cn$"})
+	if err != nil {
+		t.Fatalf("parseCLIArgs returned error: %v", err)
+	}
+	if cfg.Command != "find-category" {
+		t.Fatalf("command=%s want=find-category", cfg.Command)
+	}
+	if len(cfg.CategoryPatterns) != 1 || cfg.CategoryPatterns[0] != "^cn$" {
+		t.Fatalf("category patterns=%v want [^cn$]", cfg.CategoryPatterns)
+	}
+}
+
+func TestParseCLIArgsFindCategoryRequiresPattern(t *testing.T) {
+	_, err := parseCLIArgs([]string{"find-category", "-db", "/tmp/db"})
 	if err == nil {
 		t.Fatal("expected error for missing category regex")
 	}

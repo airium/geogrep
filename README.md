@@ -39,38 +39,38 @@ For a fuller feature map, see [FEATURES.md](FEATURES.md).
 Prepare a directory of geodata files, then run:
 
 ```bash
-# Search databases in the current directory.
-./geogrep find google.com
+# Find matching rules in databases in the current directory.
+./geogrep find-rule google.com
 
 # Search a prepared database directory.
-./geogrep find -db <dir/to/db> google.com
+./geogrep fr -db <dir/to/db> google.com
 
 # Search one database file only.
-./geogrep find -db <dir/to/db>/geosite.dat google.com
+./geogrep find-rule -db <dir/to/db>/geosite.dat google.com
 
 # Force query types.
-./geogrep find -db <dir/to/db> -4 1.1.1.1 -6 2606:4700:4700::1111 -d google.com -k ads
+./geogrep find-rule -db <dir/to/db> -4 1.1.1.1 -6 2606:4700:4700::1111 -d google.com -k ads
 
 # Mix auto-detected positional inputs.
-./geogrep find -db <dir/to/db> 1.1.1.1 1.1.1.0/24 google.com google
+./geogrep fr -db <dir/to/db> 1.1.1.1 1.1.1.0/24 google.com google
 
 # List every rule from exact ruleset names.
-./geogrep list -db <dir/to/db> lan private
+./geogrep list-rule -db <dir/to/db> lan private
 
-# Show databases and category names matching a regex.
-./geogrep list-category -db <dir/to/db> cn
+# Find databases and category names matching a regex.
+./geogrep find-category -db <dir/to/db> cn
 
 # Include MMDB/MetaDB category names when mixed database types are loaded.
-./geogrep list-category -db <dir/to/db> --include-mmdb cn
+./geogrep fc -db <dir/to/db> --include-mmdb cn
 
 # Export category discovery.
-./geogrep list-category -db <dir/to/db> '^cn$' --json ./categories.json
+./geogrep find-category -db <dir/to/db> '^cn$' --json ./categories.json
 
 # Export a ruleset listing.
-./geogrep list -db <dir/to/db> cn --json ./list.json
+./geogrep lr -db <dir/to/db> cn --json ./list.json
 
 # Export structured results.
-./geogrep find -db <dir/to/db> -v google.com --json ./result.json
+./geogrep find-rule -db <dir/to/db> -v google.com --json ./result.json
 
 # Convert a rule file to another supported format.
 ./geogrep convert -i ./rules.list -o ./rules.json
@@ -104,13 +104,13 @@ GEOGREP_ENV=development ./geogrep web -db <dir/to/db>
 ## CLI Reference
 
 ```text
-geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db|--database DB_DIR|DB_FILE] \
+geogrep find-rule|fr [--json RESULT_PATH] [-v|--verbose[=N]] [-db|--database DB_DIR|DB_FILE] \
   [-4 IPv4_OR_CIDR] [-6 IPv6_OR_CIDR6] [-d DOMAIN] [-k KEYWORD] \
   [IP_OR_CIDR_OR_DOMAIN_OR_KEYWORD ...]
 
-geogrep list [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] RULESET_NAME [...]
+geogrep list-rule|lr [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] RULESET_NAME [...]
 
-geogrep list-category [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] CATEGORY_REGEX [...]
+geogrep find-category|fc [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] CATEGORY_REGEX [...]
 
 geogrep convert -i INPUT_PATH -o OUTPUT_PATH [--to FORMAT]
 
@@ -126,9 +126,9 @@ Options:
   file.
   If omitted, `geogrep` scans the current directory. If that yields no
   supported files, it falls back to the executable directory.
-- `--json PATH`: write structured JSON output for `find`, `list`, or
-  `list-category`.
-- `--include-mmdb`: include MMDB/MetaDB data in `list` or `list-category`
+- `--json PATH`: write structured JSON output for `find-rule`, `list-rule`, or
+  `find-category`.
+- `--include-mmdb`: include MMDB/MetaDB data in `list-rule` or `find-category`
   output. This is enabled automatically when MMDB/MetaDB is the only loaded
   database type. When enabled, geogrep may create a sibling
   `<filename-stem>.json` category cache with the source file SHA-256, category
@@ -140,10 +140,10 @@ Options:
 - `-d VALUE`: force domain parsing. Non-domain input is rejected; use `-k` for
   keyword searches.
 - `-k VALUE`: force keyword parsing.
-- `RULESET_NAME`: exact ruleset/category name to list with `geogrep list`.
+- `RULESET_NAME`: exact ruleset/category name to list with `geogrep list-rule`.
   Multiple names can be supplied.
 - `CATEGORY_REGEX`: case-insensitive regular expression used by
-  `geogrep list-category` to find matching category names. Multiple patterns
+  `geogrep find-category` to find matching category names. Multiple patterns
   can be supplied.
 - `-i PATH`, `--input PATH`: input file or directory for `convert`.
 - `-o PATH`, `--output PATH`: output file for `convert`.
@@ -180,11 +180,13 @@ Routes:
 - `GET /api/list-category/<pattern>`; add `?include_mmdb=true` to include
   MMDB/MetaDB category names when they are not auto-included.
 - `GET /find/<type>/<value>` redirects to the UI with
-  `?mode=find&type=<type>&q=<value>`.
-- `GET /find/list/<ruleset>` redirects to the UI with
-  `?mode=list&q=<ruleset>`.
-- `GET /find/list-category/<pattern>` redirects to the UI with
-  `?mode=list-category&q=<pattern>`.
+  `?mode=find-rule&type=<type>&q=<value>`.
+- `GET /find/list-rule/<ruleset>` redirects to the UI with
+  `?mode=list-rule&q=<ruleset>`.
+- `GET /find/find-category/<pattern>` redirects to the UI with
+  `?mode=find-category&q=<pattern>`.
+- Legacy share routes `/find/list/<ruleset>` and
+  `/find/list-category/<pattern>` redirect to the new UI mode names.
 
 Examples:
 
@@ -203,11 +205,11 @@ curl "http://127.0.0.1:8080/api/list-category/%5Ecn%24?include_mmdb=true"
 Built-in UI behavior:
 
 - Root `/` serves the embedded static UI unless `--api-only` is set.
-- The UI can search all lookup modes, list rulesets, toggle MMDB list output,
-  list category names by regex, toggle MMDB list output, copy share/API URLs,
+- The UI can find matching rules, list rulesets, find category names by regex,
+  toggle MMDB output for list modes, copy share/API URLs,
   expand long result groups, and inspect the raw JSON response.
 - The UI displays the running geogrep version reported by `/health`.
-- Share redirects auto-run the lookup or ruleset listing when opened in a
+- Share redirects auto-run the selected find/list mode when opened in a
   browser.
 - The embedded UI is dependency-free and lives in
   [internal/geogrep/webui/index.html](internal/geogrep/webui/index.html).
@@ -317,21 +319,21 @@ Stdout output includes, for each input:
 - match lines formatted as `source | format | category | rule`
 - optional no-match lines when verbosity is enabled
 
-`geogrep list` prints each requested ruleset, grouped by matching database.
+`geogrep list-rule` prints each requested ruleset, grouped by matching database.
 Rulesets are matched by full loaded GeoIP/geosite category name,
 case-insensitively, so `cn` matches `CN`. Uncategorized sparse files use the
 source filename or filename stem as the ruleset name, while the containing
 directory remains the database. MMDB/MetaDB sources are skipped unless
 `--include-mmdb` is set or MMDB/MetaDB is the only loaded database type.
 
-`geogrep list-category` prints each requested regex pattern, grouped by
+`geogrep find-category` prints each requested regex pattern, grouped by
 matching database, then lists `source | format | category` rows. Regex matching
 is case-insensitive by default, so `cn` matches both `CN` and names such as
 `apple-cn`. MMDB/MetaDB category names are skipped unless `--include-mmdb` is
 set or MMDB/MetaDB is the only loaded database type. When a valid MMDB/MetaDB
 list cache includes `category_names`, category discovery reads that compact key
 directly instead of loading category-to-rule data or walking every MMDB network.
-List-category JSON export includes metadata and one result object per requested
+Find-category JSON export includes metadata and one result object per requested
 pattern, with each category carrying database, source, format, and category
 fields.
 

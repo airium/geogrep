@@ -5,7 +5,7 @@ capabilities added through the repository history.
 
 ## Current Capabilities
 
-### Unified Geodata Lookup
+### Rule Finding
 
 - Searches multiple geoip and geosite database formats through one command.
 - Handles IP, CIDR, domain, and keyword inputs.
@@ -13,9 +13,10 @@ capabilities added through the repository history.
 - Reports provenance for every match: database, source, format, category, and
   matched rule or network.
 
-### Ruleset Listing
+### Rule Listing
 
-- Lists all rules in loaded ruleset/category names with `geogrep list`.
+- Lists all rules in loaded ruleset/category names with `geogrep list-rule`
+  or `geogrep lr`.
 - Ruleset matching is exact by name and case-insensitive.
 - For grouped sparse files, the child directory is the database and each direct
   file is a ruleset; each file line is a rule.
@@ -29,7 +30,7 @@ capabilities added through the repository history.
 ### Category Discovery
 
 - Lists databases and category names matching case-insensitive regular
-  expressions with `geogrep list-category`.
+  expressions with `geogrep find-category` or `geogrep fc`.
 - Supports `-db/--database` for explicit database root or single-file
   selection.
 - Uses the same MMDB/MetaDB policy as ruleset listing: skipped by default when
@@ -100,13 +101,14 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 
 - Human-readable stdout is grouped by input and database.
 - Match lines are consistently formatted as source, format, category, and rule.
-- `geogrep list [--include-mmdb] [-db DB_DIR|DB_FILE] RULESET_NAME [...]` lists
-  every rule from exact, case-insensitive ruleset/category names across loaded
-  databases.
-- `geogrep list-category [--include-mmdb] [-db DB_DIR|DB_FILE] CATEGORY_REGEX
-  [...]` lists which loaded databases contain category names matching
-  case-insensitive regex patterns.
-- `geogrep list --json PATH ...` writes structured list output for automation.
+- `geogrep list-rule|lr [--include-mmdb] [-db DB_DIR|DB_FILE] RULESET_NAME
+  [...]` lists every rule from exact, case-insensitive ruleset/category names
+  across loaded databases.
+- `geogrep find-category|fc [--include-mmdb] [-db DB_DIR|DB_FILE]
+  CATEGORY_REGEX [...]` lists which loaded databases contain category names
+  matching case-insensitive regex patterns.
+- `geogrep list-rule --json PATH ...` writes structured list output for
+  automation.
 - Verbose mode (`-v` or `--verbose`) enables explicit no-match reporting.
 - `--json PATH` writes structured metadata, query results, matches, optional
   no-match records, and loader diagnostics.
@@ -144,8 +146,9 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - `--api-only` disables UI routes.
 - `--webui PATH` serves custom static UI files.
 - Share routes under `/find/<type>/<value>` redirect to the UI and auto-run
-  the lookup; `/find/list/<ruleset>` opens ruleset listing mode, and
-  `/find/list-category/<pattern>` opens category discovery mode.
+  find-rule mode; `/find/list-rule/<ruleset>` opens list-rule mode, and
+  `/find/find-category/<pattern>` opens find-category mode. Legacy
+  `/find/list/...` and `/find/list-category/...` routes remain accepted.
 
 ### Embedded Web UI
 
@@ -155,9 +158,9 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - Runtime version display loaded from the local `/health` endpoint.
 - Results render as dense database match rows with badges, expandable overflow,
   copy buttons, and raw JSON inspection.
-- Ruleset listing mode uses the same result surface and raw JSON inspection,
+- List-rule mode uses the same result surface and raw JSON inspection,
   with an MMDB include toggle.
-- Category discovery mode lists matching database/category names and supports
+- Find-category mode lists matching database/category names and supports
   share/API URL copy plus raw JSON inspection.
 - The UI preserves existing API and share-link behavior.
 

@@ -1095,7 +1095,7 @@
         <span class="brand-mark" aria-hidden="true">g</span>
         <span class="brand-text">
           <span class="brand-title">geogrep</span>
-          <span class="brand-subtitle">web lookup</span>
+          <span class="brand-subtitle">web geogrep</span>
         </span>
       </a>
 
@@ -1106,7 +1106,7 @@
             <circle cx="11" cy="11" r="7"></circle>
             <path d="m20 20-4-4"></path>
           </svg>
-          <span>Lookup</span>
+          <span>Find rule</span>
         </a>
         <a class="nav-link" href="/openapi.json">
           <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -1125,7 +1125,7 @@
       </nav>
 
       <section class="side-section" aria-labelledby="mode-title">
-        <p id="mode-title" class="side-label">Lookup modes</p>
+        <p id="mode-title" class="side-label">Rule query types</p>
         <ul class="mode-list">
           <li>auto</li>
           <li>ipv4</li>
@@ -1149,12 +1149,12 @@
             <span class="breadcrumb-separator">/</span>
             <span>web</span>
             <span class="breadcrumb-separator">/</span>
-            <span>lookup</span>
+            <span>find rule</span>
           </div>
           <div class="header-row">
             <div class="title-block">
-              <h1>Geo database lookup</h1>
-              <p class="page-description">Search IP, CIDR, domain, keyword, or ruleset values through the same engine as <code>geogrep</code>.</p>
+              <h1>Geo database search</h1>
+              <p class="page-description">Find matching rules, list rulesets, or find category names through the same engine as <code>geogrep</code>.</p>
             </div>
             <div class="header-actions">
               <span id="runtime-version" class="version-chip" data-version-label aria-label="geogrep runtime version">version loading</span>
@@ -1175,7 +1175,7 @@
               <div class="surface-header">
                 <div>
                   <h2 id="lookup-title" class="surface-title">Request</h2>
-                  <p id="request-description" class="surface-description">Choose the parser hint and query value.</p>
+                  <p id="request-description" class="surface-description">Choose the parser hint and rule query.</p>
                 </div>
                 <span id="endpoint-badge" class="badge info">GET /api/find</span>
               </div>
@@ -1184,13 +1184,13 @@
                   <div class="field">
                     <label for="request-mode">Mode</label>
                     <select id="request-mode" name="mode" data-kumo-component="Select">
-                      <option value="find">lookup</option>
-                      <option value="list">list</option>
-                      <option value="list-category">categories</option>
+                      <option value="find-rule">find rule</option>
+                      <option value="list-rule">list rules</option>
+                      <option value="find-category">find categories</option>
                     </select>
                   </div>
                   <div class="field">
-                    <label for="lookup-type">Lookup type</label>
+                    <label for="lookup-type">Rule query type</label>
                     <select id="lookup-type" name="type" data-kumo-component="Select">
                       <option value="auto">auto</option>
                       <option value="ipv4">ipv4</option>
@@ -1200,7 +1200,7 @@
                     </select>
                   </div>
                   <div class="field">
-                    <label id="lookup-value-label" for="lookup-value">Query value</label>
+                    <label id="lookup-value-label" for="lookup-value">Rule query</label>
                     <input id="lookup-value" name="q" placeholder="1.1.1.1, 1.1.1.0/24, example.com, google" data-kumo-component="Input" required>
                   </div>
                   <label id="include-mmdb-field" class="list-options hidden" for="include-mmdb">
@@ -1212,7 +1212,7 @@
                       <circle cx="11" cy="11" r="7"></circle>
                       <path d="m20 20-4-4"></path>
                     </svg>
-                    <span class="button-label">Run lookup</span>
+                    <span class="button-label">Find rules</span>
                   </button>
                 </div>
               </form>
@@ -1246,7 +1246,7 @@
                 </div>
               </div>
 
-              <div class="metric-grid" aria-label="Lookup metrics">
+              <div class="metric-grid" aria-label="Request metrics">
                 <div class="metric">
                   <span class="metric-label">Mode</span>
                   <span id="metric-mode" class="metric-value">auto</span>
@@ -1340,10 +1340,19 @@
       var currentAPIURL = "";
 
       function sanitizeMode(mode) {
-        if (mode === "list" || mode === "list-category") {
+        if (mode === "find" || mode === "lookup") {
+          return "find-rule";
+        }
+        if (mode === "list") {
+          return "list-rule";
+        }
+        if (mode === "list-category") {
+          return "find-category";
+        }
+        if (mode === "find-rule" || mode === "list-rule" || mode === "find-category") {
           return mode;
         }
-        return "find";
+        return "find-rule";
       }
 
       function sanitizeType(type) {
@@ -1354,14 +1363,14 @@
       }
 
       function buildAPIPath(mode, type, value, includeMMDB) {
-        if (mode === "list") {
+        if (mode === "list-rule") {
           var path = "/api/list/" + encodeURIComponent(value);
           if (includeMMDB) {
             path += "?include_mmdb=true";
           }
           return path;
         }
-        if (mode === "list-category") {
+        if (mode === "find-category") {
           var categoryPath = "/api/list-category/" + encodeURIComponent(value);
           if (includeMMDB) {
             categoryPath += "?include_mmdb=true";
@@ -1372,15 +1381,15 @@
       }
 
       function buildSharePath(mode, type, value, includeMMDB) {
-        if (mode === "list") {
-          var path = "/find/list/" + encodeURIComponent(value);
+        if (mode === "list-rule") {
+          var path = "/find/list-rule/" + encodeURIComponent(value);
           if (includeMMDB) {
             path += "?include_mmdb=true";
           }
           return path;
         }
-        if (mode === "list-category") {
-          var categoryPath = "/find/list-category/" + encodeURIComponent(value);
+        if (mode === "find-category") {
+          var categoryPath = "/find/find-category/" + encodeURIComponent(value);
           if (includeMMDB) {
             categoryPath += "?include_mmdb=true";
           }
@@ -1408,22 +1417,22 @@
 
       function syncModeUI() {
         var mode = sanitizeMode(modeEl.value);
-        var isList = mode === "list";
-        var isCategoryList = mode === "list-category";
+        var isList = mode === "list-rule";
+        var isCategoryList = mode === "find-category";
         typeEl.disabled = isList || isCategoryList;
         includeMMDBFieldEl.classList.toggle("hidden", !(isList || isCategoryList));
         if (isCategoryList) {
           valueLabelEl.textContent = "Category regex";
           valueEl.placeholder = "cn, ^cn$, google|apple";
-          buttonLabelEl.textContent = "List categories";
-          requestDescriptionEl.textContent = "Enter a category name regular expression.";
+          buttonLabelEl.textContent = "Find categories";
+          requestDescriptionEl.textContent = "Find category names by regular expression.";
           endpointBadgeEl.textContent = "GET /api/list-category";
           return;
         }
-        valueLabelEl.textContent = isList ? "Ruleset name" : "Query value";
+        valueLabelEl.textContent = isList ? "Ruleset name" : "Rule query";
         valueEl.placeholder = isList ? "cn, private, lan" : "1.1.1.1, 1.1.1.0/24, example.com, google";
-        buttonLabelEl.textContent = isList ? "List rules" : "Run lookup";
-        requestDescriptionEl.textContent = isList ? "Enter a ruleset or category name." : "Choose the parser hint and query value.";
+        buttonLabelEl.textContent = isList ? "List rules" : "Find rules";
+        requestDescriptionEl.textContent = isList ? "Enter a ruleset or category name." : "Choose the parser hint and rule query.";
         endpointBadgeEl.textContent = isList ? "GET /api/list" : "GET /api/find";
       }
 
@@ -1484,9 +1493,9 @@
       }
 
       function setMetrics(mode, databases, rules) {
-        metricModeEl.textContent = mode || "lookup";
+        metricModeEl.textContent = mode || "find-rule";
         metricDatabasesEl.textContent = String(databases || 0);
-        metricRulesLabelEl.textContent = mode === "categories" || mode === "list-category" ? "Categories" : "Rules";
+        metricRulesLabelEl.textContent = mode === "find-category" ? "Categories" : "Rules";
         metricRulesEl.textContent = String(rules || 0);
       }
 
@@ -1554,7 +1563,7 @@
         if (!Array.isArray(results) || results.length === 0) {
           summaryEl.textContent = "No result payload returned.";
           matchesEl.innerHTML = "";
-          showEmptyState("No result payload.", "The API response did not include lookup results.");
+          showEmptyState("No result payload.", "The API response did not include find-rule results.");
           return;
         }
 
@@ -1614,7 +1623,7 @@
         matchesEl.innerHTML = cards.join("");
 
         if (cards.length === 0) {
-          showEmptyState("No matching rules.", "The lookup completed, but no loaded database reported a match.");
+          showEmptyState("No matching rules.", "The find-rule request completed, but no loaded database reported a match.");
         } else {
           hideEmptyState();
         }
@@ -1622,7 +1631,7 @@
 
       function renderListSummary(payload) {
         var results = payload && payload.result && payload.result.results;
-        setMetrics("list", 0, 0);
+        setMetrics("list-rule", 0, 0);
 
         if (!Array.isArray(results) || results.length === 0) {
           summaryEl.textContent = "No result payload returned.";
@@ -1694,7 +1703,7 @@
         });
 
         var dbCount = Object.keys(matchedDB).length;
-        setMetrics("list", dbCount, totalRules);
+        setMetrics("list-rule", dbCount, totalRules);
         summaryEl.textContent = "Listed " + totalRules + " rule(s) from " + dbCount + " database(s).";
         matchesEl.innerHTML = cards.join("");
 
@@ -1707,7 +1716,7 @@
 
       function renderListCategorySummary(payload) {
         var results = payload && payload.result && payload.result.results;
-        setMetrics("categories", 0, 0);
+        setMetrics("find-category", 0, 0);
 
         if (!Array.isArray(results) || results.length === 0) {
           summaryEl.textContent = "No result payload returned.";
@@ -1779,8 +1788,8 @@
         });
 
         var dbCount = Object.keys(matchedDB).length;
-        setMetrics("categories", dbCount, totalCategories);
-        summaryEl.textContent = "Listed " + totalCategories + " categor" + (totalCategories === 1 ? "y" : "ies") + " from " + dbCount + " database(s).";
+        setMetrics("find-category", dbCount, totalCategories);
+        summaryEl.textContent = "Found " + totalCategories + " categor" + (totalCategories === 1 ? "y" : "ies") + " from " + dbCount + " database(s).";
         matchesEl.innerHTML = cards.join("");
 
         if (cards.length === 0) {
@@ -1825,7 +1834,7 @@
         summaryEl.textContent = "";
         matchesEl.innerHTML = "";
         var mode = sanitizeMode(modeEl.value);
-        setMetrics(mode === "list" ? "list" : mode === "list-category" ? "categories" : sanitizeType(typeEl.value), 0, 0);
+        setMetrics(mode === "list-rule" ? "list-rule" : mode === "find-category" ? "find-category" : sanitizeType(typeEl.value), 0, 0);
         showEmptyState("No request has run.", "Results will appear here after the first request.");
         toggleCopyActions(false);
       }
@@ -1865,30 +1874,30 @@
         var mode = sanitizeMode(modeEl.value);
         var type = sanitizeType(typeEl.value);
         var value = valueEl.value.trim();
-        var includeMMDB = (mode === "list" || mode === "list-category") && includeMMDBEl.checked;
+        var includeMMDB = (mode === "list-rule" || mode === "find-category") && includeMMDBEl.checked;
         setLinks(mode, type, value, includeMMDB);
         toggleCopyActions(false);
-        setMetrics(mode === "list" ? "list" : mode === "list-category" ? "categories" : type, 0, 0);
+        setMetrics(mode === "list-rule" ? "list-rule" : mode === "find-category" ? "find-category" : type, 0, 0);
 
         if (!value) {
-          setStatus(mode === "list" ? "Ruleset is required." : mode === "list-category" ? "Category regex is required." : "Input is required.", "error");
+          setStatus(mode === "list-rule" ? "Ruleset is required." : mode === "find-category" ? "Category regex is required." : "Input is required.", "error");
           clearResultArea();
           rawEl.textContent = "No request has been made yet.";
           return;
         }
 
         if (shouldUpdateHistory) {
-          var query = mode === "list"
-            ? "?mode=list&q=" + encodeURIComponent(value) + (includeMMDB ? "&include_mmdb=true" : "")
-            : mode === "list-category"
-              ? "?mode=list-category&q=" + encodeURIComponent(value) + (includeMMDB ? "&include_mmdb=true" : "")
-              : "?mode=find&type=" + encodeURIComponent(type) + "&q=" + encodeURIComponent(value);
+          var query = mode === "list-rule"
+            ? "?mode=list-rule&q=" + encodeURIComponent(value) + (includeMMDB ? "&include_mmdb=true" : "")
+            : mode === "find-category"
+              ? "?mode=find-category&q=" + encodeURIComponent(value) + (includeMMDB ? "&include_mmdb=true" : "")
+              : "?mode=find-rule&type=" + encodeURIComponent(type) + "&q=" + encodeURIComponent(value);
           window.history.replaceState(null, "", "/" + query);
         }
 
         var apiPath = buildAPIPath(mode, type, value, includeMMDB);
-        setStatus(mode === "list" ? "Listing..." : mode === "list-category" ? "Listing categories..." : "Looking up...", "");
-        showEmptyState(mode === "list" ? "List request running." : mode === "list-category" ? "Category request running." : "Lookup running.", "Waiting for the API response.");
+        setStatus(mode === "list-rule" ? "Listing rules..." : mode === "find-category" ? "Finding categories..." : "Finding rules...", "");
+        showEmptyState(mode === "list-rule" ? "List-rule request running." : mode === "find-category" ? "Find-category request running." : "Find-rule request running.", "Waiting for the API response.");
         matchesEl.innerHTML = "";
         buttonEl.disabled = true;
 
@@ -1899,15 +1908,15 @@
 
           if (!response.ok) {
             var msg = payload && payload.error ? payload.error : "Request failed";
-            setStatus((mode === "list" ? "List" : mode === "list-category" ? "Category list" : "Lookup") + " failed: " + msg, "error");
+            setStatus((mode === "list-rule" ? "List-rule" : mode === "find-category" ? "Find-category" : "Find-rule") + " failed: " + msg, "error");
             clearResultArea();
             return;
           }
 
-          setStatus(mode === "list" ? "List succeeded." : mode === "list-category" ? "Category list succeeded." : "Lookup succeeded.", "ok");
-          if (mode === "list") {
+          setStatus(mode === "list-rule" ? "List-rule succeeded." : mode === "find-category" ? "Find-category succeeded." : "Find-rule succeeded.", "ok");
+          if (mode === "list-rule") {
             renderListSummary(payload);
-          } else if (mode === "list-category") {
+          } else if (mode === "find-category") {
             renderListCategorySummary(payload);
           } else {
             renderSummary(payload);
@@ -1971,7 +1980,7 @@
       });
 
       typeEl.addEventListener("change", function () {
-        if (sanitizeMode(modeEl.value) === "find") {
+        if (sanitizeMode(modeEl.value) === "find-rule") {
           setMetrics(sanitizeType(typeEl.value), metricDatabasesEl.textContent, metricRulesEl.textContent);
         }
       });
@@ -1985,7 +1994,7 @@
 
       (function bootFromURL() {
         var params = new URLSearchParams(window.location.search);
-        var urlMode = sanitizeMode(params.get("mode") || "find");
+        var urlMode = sanitizeMode(params.get("mode") || "find-rule");
         var urlType = sanitizeType(params.get("type") || "auto");
         var urlValue = (params.get("q") || "").trim();
         var includeMMDB = params.get("include_mmdb") === "true" || params.get("include_mmdb") === "1";
@@ -1993,9 +2002,9 @@
         modeEl.value = urlMode;
         typeEl.value = urlType;
         valueEl.value = urlValue;
-        includeMMDBEl.checked = (urlMode === "list" || urlMode === "list-category") && includeMMDB;
+        includeMMDBEl.checked = (urlMode === "list-rule" || urlMode === "find-category") && includeMMDB;
         syncModeUI();
-        setMetrics(urlMode === "list" ? "list" : urlMode === "list-category" ? "categories" : urlType, 0, 0);
+        setMetrics(urlMode === "list-rule" ? "list-rule" : urlMode === "find-category" ? "find-category" : urlType, 0, 0);
         setLinks(urlMode, urlType, urlValue, includeMMDBEl.checked);
 
         if (urlValue) {

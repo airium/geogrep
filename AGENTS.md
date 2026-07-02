@@ -30,15 +30,15 @@ Important paths:
 
 ## Current Behavior to Preserve
 
-- CLI subcommands are `find`, `list`, `list-category`, `convert`, `web`, and
-  `version`.
-- `find` supports `-db/--database`, `--json`, `-v/--verbose`, `-4`, `-6`, `-d`,
-  and `-k`.
-- `list` supports `-db/--database`, `--json`, and one or more exact
-  case-insensitive ruleset names. For grouped sparse files, the direct child
-  directory is the database, each direct file is the ruleset, and each file
-  line is a rule.
-- `list-category` supports `-db/--database`, `--include-mmdb`, `--json`, and
+- CLI subcommands are `find-rule` (`fr`), `list-rule` (`lr`),
+  `find-category` (`fc`), `convert`, `web`, and `version`.
+- `find-rule` supports `-db/--database`, `--json`, `-v|--verbose`, `-4`,
+  `-6`, `-d`, and `-k`.
+- `list-rule` supports `-db/--database`, `--include-mmdb`, `--json`, and one
+  or more exact case-insensitive ruleset names. For grouped sparse files, the
+  direct child directory is the database, each direct file is the ruleset, and
+  each file line is a rule.
+- `find-category` supports `-db/--database`, `--include-mmdb`, `--json`, and
   one or more case-insensitive regex patterns for category discovery.
 - `convert` supports `-i/--input`, `-o/--output`, and `--to`.
 - `web` defaults to `127.0.0.1:8080` for normal and production runs.
@@ -55,9 +55,10 @@ Important paths:
   - `/api/list/<ruleset>`
   - `/api/list-category/<pattern>`
 - Share routes under `/find/<type>/<value>` redirect to
-  `/?mode=find&type=...&q=...`. `/find/list/<ruleset>` redirects to
-  `/?mode=list&q=...`. `/find/list-category/<pattern>` redirects to
-  `/?mode=list-category&q=...`.
+  `/?mode=find-rule&type=...&q=...`. `/find/list-rule/<ruleset>` redirects to
+  `/?mode=list-rule&q=...`. `/find/find-category/<pattern>` redirects to
+  `/?mode=find-category&q=...`. Legacy `/find/list/...` and
+  `/find/list-category/...` routes redirect to the new UI mode names.
 - API responses must not expose local database root paths or loader diagnostics.
 - Web path traversal guards and security headers are intentional.
 - The embedded UI is currently a single dependency-free static HTML file.

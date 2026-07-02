@@ -6,14 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- `geogrep list-category [--include-mmdb] [-db|--database DB_DIR|DB_FILE]
+- `geogrep find-category|fc [--include-mmdb] [-db|--database DB_DIR|DB_FILE]
   CATEGORY_REGEX [...]` for finding databases and category names with
   case-insensitive regular expressions.
-- `geogrep list-category --json RESULT_PATH`, `GET
+- `geogrep find-category --json RESULT_PATH`, `GET
   /api/list-category/<pattern>`, `include_mmdb=true`, share redirects, and
   embedded web UI category discovery mode.
 - MMDB/MetaDB list caches now include `category_names` for category discovery,
   while remaining compatible with existing category-to-rule caches.
+
+### Changed
+
+- Renamed CLI subcommands from `find`, `list`, and `list-category` to
+  `find-rule`, `list-rule`, and `find-category`, with shortcuts `fr`, `lr`,
+  and `fc`.
 
 ## [0.4.1] - 2026-06-30
 

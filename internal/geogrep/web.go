@@ -555,7 +555,7 @@ func (s *webRuntime) handleShareRedirect(w http.ResponseWriter, r *http.Request)
 	}
 
 	kind := parts[0]
-	if kind == "list-category" {
+	if kind == "find-category" || kind == "list-category" {
 		value, err := url.PathUnescape(parts[1])
 		if err != nil {
 			http.Redirect(w, r, "/", http.StatusFound)
@@ -566,7 +566,7 @@ func (s *webRuntime) handleShareRedirect(w http.ResponseWriter, r *http.Request)
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
-		target := "/?mode=list-category&q=" + url.QueryEscape(value)
+		target := "/?mode=find-category&q=" + url.QueryEscape(value)
 		if parseBoolQuery(r.URL.Query().Get("include_mmdb")) ||
 			parseBoolQuery(r.URL.Query().Get("includeMMDB")) {
 			target += "&include_mmdb=true"
@@ -574,7 +574,7 @@ func (s *webRuntime) handleShareRedirect(w http.ResponseWriter, r *http.Request)
 		http.Redirect(w, r, target, http.StatusFound)
 		return
 	}
-	if kind == "list" {
+	if kind == "list-rule" || kind == "list" {
 		value, err := url.PathUnescape(parts[1])
 		if err != nil {
 			http.Redirect(w, r, "/", http.StatusFound)
@@ -585,7 +585,7 @@ func (s *webRuntime) handleShareRedirect(w http.ResponseWriter, r *http.Request)
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
-		target := "/?mode=list&q=" + url.QueryEscape(value)
+		target := "/?mode=list-rule&q=" + url.QueryEscape(value)
 		if parseBoolQuery(r.URL.Query().Get("include_mmdb")) ||
 			parseBoolQuery(r.URL.Query().Get("includeMMDB")) {
 			target += "&include_mmdb=true"
@@ -609,7 +609,7 @@ func (s *webRuntime) handleShareRedirect(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	target := "/?mode=find&type=" + url.QueryEscape(kind) + "&q=" + url.QueryEscape(value)
+	target := "/?mode=find-rule&type=" + url.QueryEscape(kind) + "&q=" + url.QueryEscape(value)
 	http.Redirect(w, r, target, http.StatusFound)
 }
 

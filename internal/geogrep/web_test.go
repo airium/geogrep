@@ -21,8 +21,8 @@ func TestHandleShareRedirectAuto(t *testing.T) {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
 	}
 	location := rr.Header().Get("Location")
-	if location != "/?mode=find&type=auto&q=google.com" {
-		t.Fatalf("location=%s want=/?mode=find&type=auto&q=google.com", location)
+	if location != "/?mode=find-rule&type=auto&q=google.com" {
+		t.Fatalf("location=%s want=/?mode=find-rule&type=auto&q=google.com", location)
 	}
 }
 
@@ -37,8 +37,8 @@ func TestHandleShareRedirectCIDR(t *testing.T) {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
 	}
 	location := rr.Header().Get("Location")
-	if location != "/?mode=find&type=ipv4&q=1.1.1.0%2F24" {
-		t.Fatalf("location=%s want=/?mode=find&type=ipv4&q=1.1.1.0%%2F24", location)
+	if location != "/?mode=find-rule&type=ipv4&q=1.1.1.0%2F24" {
+		t.Fatalf("location=%s want=/?mode=find-rule&type=ipv4&q=1.1.1.0%%2F24", location)
 	}
 }
 
@@ -58,7 +58,23 @@ func TestHandleShareRedirectInvalidType(t *testing.T) {
 	}
 }
 
-func TestHandleShareRedirectList(t *testing.T) {
+func TestHandleShareRedirectListRule(t *testing.T) {
+	runtime := &webRuntime{}
+	req := httptest.NewRequest(http.MethodGet, "/find/list-rule/cn", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleShareRedirect(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
+	}
+	location := rr.Header().Get("Location")
+	if location != "/?mode=list-rule&q=cn" {
+		t.Fatalf("location=%s want=/?mode=list-rule&q=cn", location)
+	}
+}
+
+func TestHandleShareRedirectLegacyList(t *testing.T) {
 	runtime := &webRuntime{}
 	req := httptest.NewRequest(http.MethodGet, "/find/list/cn", nil)
 	rr := httptest.NewRecorder()
@@ -69,14 +85,14 @@ func TestHandleShareRedirectList(t *testing.T) {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
 	}
 	location := rr.Header().Get("Location")
-	if location != "/?mode=list&q=cn" {
-		t.Fatalf("location=%s want=/?mode=list&q=cn", location)
+	if location != "/?mode=list-rule&q=cn" {
+		t.Fatalf("location=%s want=/?mode=list-rule&q=cn", location)
 	}
 }
 
-func TestHandleShareRedirectListIncludeMMDB(t *testing.T) {
+func TestHandleShareRedirectListRuleIncludeMMDB(t *testing.T) {
 	runtime := &webRuntime{}
-	req := httptest.NewRequest(http.MethodGet, "/find/list/cn?include_mmdb=true", nil)
+	req := httptest.NewRequest(http.MethodGet, "/find/list-rule/cn?include_mmdb=true", nil)
 	rr := httptest.NewRecorder()
 
 	runtime.handleShareRedirect(rr, req)
@@ -85,12 +101,28 @@ func TestHandleShareRedirectListIncludeMMDB(t *testing.T) {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
 	}
 	location := rr.Header().Get("Location")
-	if location != "/?mode=list&q=cn&include_mmdb=true" {
-		t.Fatalf("location=%s want=/?mode=list&q=cn&include_mmdb=true", location)
+	if location != "/?mode=list-rule&q=cn&include_mmdb=true" {
+		t.Fatalf("location=%s want=/?mode=list-rule&q=cn&include_mmdb=true", location)
 	}
 }
 
-func TestHandleShareRedirectListCategory(t *testing.T) {
+func TestHandleShareRedirectFindCategory(t *testing.T) {
+	runtime := &webRuntime{}
+	req := httptest.NewRequest(http.MethodGet, "/find/find-category/%5Ecn%24?include_mmdb=true", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleShareRedirect(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
+	}
+	location := rr.Header().Get("Location")
+	if location != "/?mode=find-category&q=%5Ecn%24&include_mmdb=true" {
+		t.Fatalf("location=%s want=/?mode=find-category&q=%%5Ecn%%24&include_mmdb=true", location)
+	}
+}
+
+func TestHandleShareRedirectLegacyListCategory(t *testing.T) {
 	runtime := &webRuntime{}
 	req := httptest.NewRequest(http.MethodGet, "/find/list-category/%5Ecn%24?include_mmdb=true", nil)
 	rr := httptest.NewRecorder()
@@ -101,8 +133,8 @@ func TestHandleShareRedirectListCategory(t *testing.T) {
 		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
 	}
 	location := rr.Header().Get("Location")
-	if location != "/?mode=list-category&q=%5Ecn%24&include_mmdb=true" {
-		t.Fatalf("location=%s want=/?mode=list-category&q=%%5Ecn%%24&include_mmdb=true", location)
+	if location != "/?mode=find-category&q=%5Ecn%24&include_mmdb=true" {
+		t.Fatalf("location=%s want=/?mode=find-category&q=%%5Ecn%%24&include_mmdb=true", location)
 	}
 }
 
@@ -479,7 +511,7 @@ func TestEmbeddedWebUIShowsRuntimeVersion(t *testing.T) {
 	if !strings.Contains(html, `"version " + version`) {
 		t.Fatal("expected embedded UI to render returned version")
 	}
-	if !strings.Contains(html, `value="list-category"`) || !strings.Contains(html, `/api/list-category/`) {
+	if !strings.Contains(html, `value="find-category"`) || !strings.Contains(html, `/api/list-category/`) {
 		t.Fatal("expected embedded UI to include category discovery mode")
 	}
 }

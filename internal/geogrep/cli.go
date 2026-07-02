@@ -16,7 +16,7 @@ const (
 
 func parseCLIArgs(args []string) (CLIConfig, error) {
 	if len(args) == 0 {
-		return CLIConfig{}, errors.New("missing subcommand: use 'find', 'list', 'list-category', 'convert', 'version', or 'web'")
+		return CLIConfig{}, errors.New("missing subcommand: use 'find-rule'/'fr', 'list-rule'/'lr', 'find-category'/'fc', 'convert', 'version', or 'web'")
 	}
 
 	subcommand := strings.TrimSpace(args[0])
@@ -26,12 +26,12 @@ func parseCLIArgs(args []string) (CLIConfig, error) {
 			return CLIConfig{}, errors.New("version subcommand does not accept additional arguments")
 		}
 		return CLIConfig{Command: "version"}, nil
-	case "find":
-		return parseFindArgs(args[1:])
-	case "list":
-		return parseListArgs(args[1:])
-	case "list-category":
-		return parseListCategoryArgs(args[1:])
+	case "find-rule", "fr":
+		return parseFindRuleArgs(args[1:])
+	case "list-rule", "lr":
+		return parseListRuleArgs(args[1:])
+	case "find-category", "fc":
+		return parseFindCategoryArgs(args[1:])
 	case "convert":
 		return parseConvertArgs(args[1:])
 	case "web":
@@ -41,8 +41,8 @@ func parseCLIArgs(args []string) (CLIConfig, error) {
 	}
 }
 
-func parseFindArgs(args []string) (CLIConfig, error) {
-	cfg := CLIConfig{Command: "find"}
+func parseFindRuleArgs(args []string) (CLIConfig, error) {
+	cfg := CLIConfig{Command: "find-rule"}
 	stopFlagParsing := false
 
 	for i := 0; i < len(args); i++ {
@@ -158,8 +158,8 @@ func parseFindArgs(args []string) (CLIConfig, error) {
 	return cfg, nil
 }
 
-func parseListArgs(args []string) (CLIConfig, error) {
-	cfg := CLIConfig{Command: "list"}
+func parseListRuleArgs(args []string) (CLIConfig, error) {
+	cfg := CLIConfig{Command: "list-rule"}
 	stopFlagParsing := false
 
 	for i := 0; i < len(args); i++ {
@@ -207,14 +207,14 @@ func parseListArgs(args []string) (CLIConfig, error) {
 	}
 
 	if len(cfg.Rulesets) == 0 {
-		return CLIConfig{}, errors.New("list requires at least one ruleset name")
+		return CLIConfig{}, errors.New("list-rule requires at least one ruleset name")
 	}
 
 	return cfg, nil
 }
 
-func parseListCategoryArgs(args []string) (CLIConfig, error) {
-	cfg := CLIConfig{Command: "list-category"}
+func parseFindCategoryArgs(args []string) (CLIConfig, error) {
+	cfg := CLIConfig{Command: "find-category"}
 	stopFlagParsing := false
 
 	for i := 0; i < len(args); i++ {
@@ -262,7 +262,7 @@ func parseListCategoryArgs(args []string) (CLIConfig, error) {
 	}
 
 	if len(cfg.CategoryPatterns) == 0 {
-		return CLIConfig{}, errors.New("list-category requires at least one category regex")
+		return CLIConfig{}, errors.New("find-category requires at least one category regex")
 	}
 
 	return cfg, nil
