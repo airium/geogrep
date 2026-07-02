@@ -14,6 +14,9 @@ All notable changes to this project will be documented in this file.
   embedded web UI category discovery mode.
 - MMDB/MetaDB list caches now include `category_names` for category discovery,
   while remaining compatible with existing category-to-rule caches.
+- `geogrep list-category|lc [--include-mmdb] [--json RESULT_PATH]
+  [-db|--database DB_DIR|DB_FILE]` for listing every category exposed by loaded
+  databases from the CLI.
 
 ### Changed
 

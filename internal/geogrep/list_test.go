@@ -197,6 +197,72 @@ func TestListCategoriesUsesSourceStemForSparseSource(t *testing.T) {
 	}
 }
 
+func TestListAllCategoriesReturnsEveryCategory(t *testing.T) {
+	results := listAllCategories([]LoadedDatabase{{
+		Name: "geoip.dat",
+		Sources: []LoadedSource{{
+			Display: "geoip.dat",
+			Format:  "dat",
+			GeoIPRules: []GeoIPRule{{
+				SubEntry: "CN",
+				Rule:     "1.0.1.0/24",
+				Prefix:   netip.MustParsePrefix("1.0.1.0/24"),
+			}, {
+				SubEntry: "US",
+				Rule:     "1.1.1.0/24",
+				Prefix:   netip.MustParsePrefix("1.1.1.0/24"),
+			}},
+		}},
+	}, {
+		Name: "geosite.dat",
+		Sources: []LoadedSource{{
+			Display: "geosite.dat",
+			Format:  "dat",
+			DomainRule: []DomainRule{{
+				SubEntry: "apple-cn",
+				Rule:     "domain:apple.com.cn",
+				Kind:     DomainExact,
+				Value:    "apple.com.cn",
+			}},
+		}},
+	}})
+
+	if len(results) != 3 {
+		t.Fatalf("categories=%#v want CN, US, apple-cn", results)
+	}
+	if results[0].Category != "CN" || results[1].Category != "US" || results[2].Category != "apple-cn" {
+		t.Fatalf("categories=%#v want CN, US, apple-cn", results)
+	}
+}
+
+func TestListAllCategoriesBuildsJSONDocument(t *testing.T) {
+	discovery := DiscoveryResult{
+		Databases:  []DiscoveredDatabase{{Name: "geoip.dat"}},
+		FromExeDir: true,
+	}
+	categories := []listedCategory{{
+		Database: "geoip.dat",
+		Source:   "geoip.dat",
+		Format:   "dat",
+		Category: "CN",
+	}}
+
+	doc := buildCategoryListDocument(discovery, categories, nil)
+
+	if doc.Metadata.DatabaseCount != 1 {
+		t.Fatalf("database_count=%d want=1", doc.Metadata.DatabaseCount)
+	}
+	if doc.Metadata.CategoryCount != 1 {
+		t.Fatalf("category_count=%d want=1", doc.Metadata.CategoryCount)
+	}
+	if !doc.Metadata.UsedExecutable {
+		t.Fatal("expected executable fallback metadata")
+	}
+	if len(doc.Categories) != 1 || doc.Categories[0].Category != "CN" {
+		t.Fatalf("categories=%#v want CN", doc.Categories)
+	}
+}
+
 func TestListCategoriesUsesListMMDBOptions(t *testing.T) {
 	tmp := t.TempDir()
 	mmdbPath := filepath.Join(tmp, "geoip.mmdb")
@@ -270,6 +336,68 @@ func TestListCategoriesUsesListMMDBOptions(t *testing.T) {
 	}
 	if len(doc.CategoryNames) != 1 || doc.CategoryNames[0] != "CN" {
 		t.Fatalf("category_names=%v want [CN]", doc.CategoryNames)
+	}
+}
+
+func TestListAllCategoriesUsesListMMDBOptions(t *testing.T) {
+	tmp := t.TempDir()
+	mmdbPath := filepath.Join(tmp, "geoip.mmdb")
+	if err := writeConvertMMDB(mmdbPath, convertRuleSet{GeoIP: []GeoIPRule{{
+		SubEntry: "CN",
+		Rule:     "1.0.1.0/24",
+		Prefix:   netip.MustParsePrefix("1.0.1.0/24"),
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	source := LoadedSource{Path: mmdbPath, Display: "geoip.mmdb"}
+	if err := loadMMDB(&source); err != nil {
+		t.Fatal(err)
+	}
+	defer closeDatabases([]LoadedDatabase{{Sources: []LoadedSource{source}}})
+
+	mixedDatabases := []LoadedDatabase{{
+		Name:    "geoip.mmdb",
+		Sources: []LoadedSource{source},
+	}, {
+		Name: "geosite.dat",
+		Sources: []LoadedSource{{
+			Display: "geosite.dat",
+			Format:  "dat",
+			DomainRule: []DomainRule{{
+				SubEntry: "google",
+				Rule:     "domain:google.com",
+				Kind:     DomainExact,
+				Value:    "google.com",
+			}},
+		}},
+	}}
+
+	results := listAllCategories(mixedDatabases)
+	if len(results) != 1 {
+		t.Fatalf("default mixed categories=%#v want only non-MMDB category", results)
+	}
+	if results[0].Category != "google" {
+		t.Fatalf("category=%s want=google", results[0].Category)
+	}
+
+	results = listAllCategoriesWithOptions(mixedDatabases, listOptions{IncludeMMDB: true})
+	if len(results) != 2 {
+		t.Fatalf("explicit include categories=%#v want MMDB plus non-MMDB categories", results)
+	}
+	if results[0].Category != "CN" || results[1].Category != "google" {
+		t.Fatalf("categories=%#v want CN then google", results)
+	}
+
+	results = listAllCategories([]LoadedDatabase{{
+		Name:    "geoip.mmdb",
+		Sources: []LoadedSource{source},
+	}})
+	if len(results) != 1 {
+		t.Fatalf("MMDB-only categories=%#v want auto-included MMDB category", results)
+	}
+	if results[0].Category != "CN" {
+		t.Fatalf("category=%s want=CN", results[0].Category)
 	}
 }
 

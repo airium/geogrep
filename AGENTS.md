@@ -31,7 +31,8 @@ Important paths:
 ## Current Behavior to Preserve
 
 - CLI subcommands are `find-rule` (`fr`), `list-rule` (`lr`),
-  `find-category` (`fc`), `convert`, `web`, and `version`.
+  `find-category` (`fc`), `list-category` (`lc`), `convert`, `web`, and
+  `version`.
 - `find-rule` supports `-db/--database`, `--json`, `-v|--verbose`, `-4`,
   `-6`, `-d`, and `-k`.
 - `list-rule` supports `-db/--database`, `--include-mmdb`, `--json`, and one
@@ -40,6 +41,8 @@ Important paths:
   each file line is a rule.
 - `find-category` supports `-db/--database`, `--include-mmdb`, `--json`, and
   one or more case-insensitive regex patterns for category discovery.
+- `list-category` supports `-db/--database`, `--include-mmdb`, and `--json`
+  for CLI-only category inventory.
 - `convert` supports `-i/--input`, `-o/--output`, and `--to`.
 - `web` defaults to `127.0.0.1:8080` for normal and production runs.
 - `GEOGREP_ENV=development` or `GEOGREP_ENV=dev` changes the default web

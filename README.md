@@ -57,11 +57,20 @@ Prepare a directory of geodata files, then run:
 # List every rule from exact ruleset names.
 ./geogrep list-rule -db <dir/to/db> lan private
 
+# List every category exposed by loaded databases.
+./geogrep list-category -db <dir/to/db>
+
 # Find databases and category names matching a regex.
 ./geogrep find-category -db <dir/to/db> cn
 
-# Include MMDB/MetaDB category names when mixed database types are loaded.
+# Include MMDB/MetaDB category names when listing all categories.
+./geogrep lc -db <dir/to/db> --include-mmdb
+
+# Include MMDB/MetaDB category names when finding categories.
 ./geogrep fc -db <dir/to/db> --include-mmdb cn
+
+# Export all loaded categories.
+./geogrep lc -db <dir/to/db> --json ./category-list.json
 
 # Export category discovery.
 ./geogrep find-category -db <dir/to/db> '^cn$' --json ./categories.json
@@ -112,6 +121,8 @@ geogrep list-rule|lr [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DI
 
 geogrep find-category|fc [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] CATEGORY_REGEX [...]
 
+geogrep list-category|lc [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE]
+
 geogrep convert -i INPUT_PATH -o OUTPUT_PATH [--to FORMAT]
 
 geogrep web [-db|--database DB_DIR|DB_FILE] [-l|--listen IP:PORT] [--webui PATH] \
@@ -126,11 +137,11 @@ Options:
   file.
   If omitted, `geogrep` scans the current directory. If that yields no
   supported files, it falls back to the executable directory.
-- `--json PATH`: write structured JSON output for `find-rule`, `list-rule`, or
-  `find-category`.
-- `--include-mmdb`: include MMDB/MetaDB data in `list-rule` or `find-category`
-  output. This is enabled automatically when MMDB/MetaDB is the only loaded
-  database type. When enabled, geogrep may create a sibling
+- `--json PATH`: write structured JSON output for `find-rule`, `list-rule`,
+  `find-category`, or `list-category`.
+- `--include-mmdb`: include MMDB/MetaDB data in `list-rule`, `find-category`,
+  or `list-category` output. This is enabled automatically when MMDB/MetaDB is
+  the only loaded database type. When enabled, geogrep may create a sibling
   `<filename-stem>.json` category cache with the source file SHA-256, category
   names, and category-to-rule data, and silently skip cache writes on error.
 - `-v`, `--verbose`, `--verbose=N`: increase verbosity. Level `>= 1` enables
@@ -325,6 +336,11 @@ case-insensitively, so `cn` matches `CN`. Uncategorized sparse files use the
 source filename or filename stem as the ruleset name, while the containing
 directory remains the database. MMDB/MetaDB sources are skipped unless
 `--include-mmdb` is set or MMDB/MetaDB is the only loaded database type.
+
+`geogrep list-category` prints all loaded category names, grouped by matching
+database, then lists `source | format | category` rows. It supports automatic
+database discovery, explicit `-db/--database` selection, `--include-mmdb`, and
+`--json`. JSON export includes metadata and a top-level `categories` array.
 
 `geogrep find-category` prints each requested regex pattern, grouped by
 matching database, then lists `source | format | category` rows. Regex matching

@@ -138,6 +138,42 @@ func TestParseCLIArgsFindCategoryRequiresPattern(t *testing.T) {
 	}
 }
 
+func TestParseCLIArgsListCategory(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"list-category", "--include-mmdb", "--json", "/tmp/categories.json", "-db", "/tmp/db"})
+	if err != nil {
+		t.Fatalf("parseCLIArgs returned error: %v", err)
+	}
+	if cfg.Command != "list-category" {
+		t.Fatalf("command=%s want=list-category", cfg.Command)
+	}
+	if cfg.DBDir != "/tmp/db" {
+		t.Fatalf("db=%s want=/tmp/db", cfg.DBDir)
+	}
+	if cfg.JSONPath != "/tmp/categories.json" {
+		t.Fatalf("json=%s want=/tmp/categories.json", cfg.JSONPath)
+	}
+	if !cfg.IncludeMMDB {
+		t.Fatal("include_mmdb should be true")
+	}
+}
+
+func TestParseCLIArgsListCategoryShortcut(t *testing.T) {
+	cfg, err := parseCLIArgs([]string{"lc"})
+	if err != nil {
+		t.Fatalf("parseCLIArgs returned error: %v", err)
+	}
+	if cfg.Command != "list-category" {
+		t.Fatalf("command=%s want=list-category", cfg.Command)
+	}
+}
+
+func TestParseCLIArgsListCategoryRejectsPattern(t *testing.T) {
+	_, err := parseCLIArgs([]string{"list-category", "cn"})
+	if err == nil {
+		t.Fatal("expected error for unexpected positional category")
+	}
+}
+
 func TestParseCLIArgsWebDefaults(t *testing.T) {
 	t.Setenv("GEOGREP_ENV", "")
 

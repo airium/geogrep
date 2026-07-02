@@ -35,9 +35,55 @@ type ListCategoryDocument struct {
 	Diagnostics []Diagnostic            `json:"diagnostics,omitempty"`
 }
 
+type CategoryListMetadata struct {
+	GeneratedAt    time.Time `json:"generated_at"`
+	DatabaseCount  int       `json:"database_count"`
+	CategoryCount  int       `json:"category_count"`
+	UsedExecutable bool      `json:"used_executable_dir_fallback"`
+}
+
+type CategoryListDocument struct {
+	Metadata    CategoryListMetadata `json:"metadata"`
+	Categories  []listedCategory     `json:"categories"`
+	Diagnostics []Diagnostic         `json:"diagnostics,omitempty"`
+}
+
 type compiledCategoryPattern struct {
 	Pattern string
 	Expr    *regexp.Regexp
+}
+
+func runListAllCategories(cfg CLIConfig) int {
+	discovery, err := resolveDiscovery(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "discovery error: %v\n", err)
+		return 1
+	}
+
+	printListAllCategoriesStartup(discovery)
+
+	databases, diagnostics := loadDatabases(discovery)
+	defer closeDatabases(databases)
+
+	if len(diagnostics) > 0 {
+		printDiagnostics(diagnostics)
+	}
+
+	opts := resolveListOptions(databases, listOptions{IncludeMMDB: cfg.IncludeMMDB})
+	printListMMDBNotice(databases, cfg.IncludeMMDB, opts.IncludeMMDB)
+
+	categories := listAllCategoriesWithOptions(databases, opts)
+	printListAllCategoriesResults(categories)
+
+	if cfg.JSONPath != "" {
+		if err := writeCategoryListJSON(cfg.JSONPath, discovery, categories, diagnostics); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to write JSON category list: %v\n", err)
+			return 1
+		}
+		fmt.Printf("\n[geogrep] wrote JSON category list to %s\n", cfg.JSONPath)
+	}
+
+	return 0
 }
 
 func runListCategory(cfg CLIConfig) int {
@@ -77,6 +123,15 @@ func runListCategory(cfg CLIConfig) int {
 	}
 
 	return 0
+}
+
+func listAllCategories(databases []LoadedDatabase) []listedCategory {
+	return listAllCategoriesWithOptions(databases, listOptions{})
+}
+
+func listAllCategoriesWithOptions(databases []LoadedDatabase, opts listOptions) []listedCategory {
+	opts = resolveListOptions(databases, opts)
+	return collectListedCategories(databases, opts)
 }
 
 func listCategories(databases []LoadedDatabase, patterns []string) ([]listedCategoryPattern, error) {
@@ -239,6 +294,31 @@ func printListCategoryStartup(discovery DiscoveryResult, patternCount int) {
 	fmt.Printf("[geogrep] db_root=%s (%s) databases=%d patterns=%d\n", discovery.RootDir, mode, len(discovery.Databases), patternCount)
 }
 
+func printListAllCategoriesStartup(discovery DiscoveryResult) {
+	mode := "current directory"
+	if discovery.FromExeDir {
+		mode = "executable directory fallback"
+	}
+	fmt.Printf("[geogrep] db_root=%s (%s) databases=%d\n", discovery.RootDir, mode, len(discovery.Databases))
+}
+
+func printListAllCategoriesResults(categories []listedCategory) {
+	fmt.Println("\n[categories]")
+	if len(categories) == 0 {
+		fmt.Println("  no categories")
+		return
+	}
+
+	currentDB := ""
+	for _, category := range categories {
+		if category.Database != currentDB {
+			currentDB = category.Database
+			fmt.Printf("  %s:\n", currentDB)
+		}
+		fmt.Printf("    - %s | %s | %s\n", category.Source, category.Format, category.Category)
+	}
+}
+
 func printListCategoryResults(results []listedCategoryPattern) {
 	for i, result := range results {
 		fmt.Printf("\n[%d] category_pattern=%s\n", i+1, result.Pattern)
@@ -267,6 +347,15 @@ func writeListCategoryJSON(path string, discovery DiscoveryResult, results []lis
 	return os.WriteFile(path, data, 0o644)
 }
 
+func writeCategoryListJSON(path string, discovery DiscoveryResult, categories []listedCategory, diags []Diagnostic) error {
+	doc := buildCategoryListDocument(discovery, categories, diags)
+	data, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
 func buildListCategoryDocument(discovery DiscoveryResult, results []listedCategoryPattern, diags []Diagnostic) ListCategoryDocument {
 	return ListCategoryDocument{
 		Metadata: ListCategoryMetadata{
@@ -276,6 +365,19 @@ func buildListCategoryDocument(discovery DiscoveryResult, results []listedCatego
 			UsedExecutable: discovery.FromExeDir,
 		},
 		Results:     results,
+		Diagnostics: diags,
+	}
+}
+
+func buildCategoryListDocument(discovery DiscoveryResult, categories []listedCategory, diags []Diagnostic) CategoryListDocument {
+	return CategoryListDocument{
+		Metadata: CategoryListMetadata{
+			GeneratedAt:    time.Now().UTC(),
+			DatabaseCount:  len(discovery.Databases),
+			CategoryCount:  len(categories),
+			UsedExecutable: discovery.FromExeDir,
+		},
+		Categories:  categories,
 		Diagnostics: diags,
 	}
 }

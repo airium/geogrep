@@ -29,6 +29,8 @@ capabilities added through the repository history.
 
 ### Category Discovery
 
+- Lists every category exposed by loaded databases with `geogrep list-category`
+  or `geogrep lc`.
 - Lists databases and category names matching case-insensitive regular
   expressions with `geogrep find-category` or `geogrep fc`.
 - Supports `-db/--database` for explicit database root or single-file
@@ -43,6 +45,8 @@ capabilities added through the repository history.
 - Uses the same meaningful category names as ruleset listing, including source
   filename stems for sparse files and opt-in categories derived from
   MMDB/MetaDB records.
+- Category listing is CLI-only; regex category discovery is also exposed
+  through the API and web UI.
 - Exposes category discovery through `GET /api/list-category/<pattern>` and
   embedded web UI category mode.
 
@@ -107,6 +111,8 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - `geogrep find-category|fc [--include-mmdb] [-db DB_DIR|DB_FILE]
   CATEGORY_REGEX [...]` lists which loaded databases contain category names
   matching case-insensitive regex patterns.
+- `geogrep list-category|lc [--include-mmdb] [-db DB_DIR|DB_FILE]` lists all
+  loaded category names.
 - `geogrep list-rule --json PATH ...` writes structured list output for
   automation.
 - Verbose mode (`-v` or `--verbose`) enables explicit no-match reporting.
