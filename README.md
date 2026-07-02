@@ -413,7 +413,6 @@ make version
 ├── DEVELOPMENT.md           # Development workflow and commit guidance
 ├── README.md
 ├── CONTRIBUTING.md
-├── CONTRIBUTORS.md
 ├── SECURITY.md
 └── Makefile
 ```
@@ -445,9 +444,3 @@ Inspect metadata with:
 
 This repository is distributed under GNU GPL v3.0 or later. See
 [LICENSE](LICENSE).
-
-## Contributors
-
-See [CONTRIBUTORS.md](CONTRIBUTORS.md).
-
-Main implementation contributor: GitHub Copilot (GPT-5.3-Codex).
