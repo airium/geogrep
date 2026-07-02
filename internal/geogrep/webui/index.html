@@ -40,7 +40,7 @@
       --shadow-kumo-sm: 0 8px 24px rgba(0, 0, 0, 0.06);
       --radius-kumo: 8px;
       --radius-kumo-sm: 6px;
-      --sidebar-width: 260px;
+      --sidebar-width: 320px;
       --content-max: 1440px;
       --mono: "SFMono-Regular", "Cascadia Code", "Liberation Mono", Menlo, monospace;
       --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -111,6 +111,7 @@
       min-height: 640px;
       flex-direction: column;
       gap: 20px;
+      overflow-y: auto;
       border-right: 1px solid var(--color-kumo-line);
       background: var(--color-kumo-base);
       padding: 18px 14px;
@@ -227,6 +228,44 @@
       line-height: 1;
       padding: 5px 8px;
       white-space: nowrap;
+    }
+
+    .sidebar-list {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .sidebar-list a,
+    .sidebar-list code {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-radius: var(--radius-kumo-sm);
+      background: var(--color-kumo-tint);
+      color: var(--text-color-kumo-default);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      line-height: 1.3;
+      padding: 7px 8px;
+      overflow-wrap: anywhere;
+    }
+
+    .sidebar-list a:hover {
+      background: var(--color-kumo-brand-tint);
+      color: var(--color-kumo-brand-hover);
+    }
+
+    .endpoint-arrow {
+      flex: 0 0 auto;
+      color: var(--text-color-kumo-subtle);
+      font-family: var(--sans);
+      font-size: 0.75rem;
+      font-weight: 600;
     }
 
     .badge.info {
@@ -352,7 +391,6 @@
 
     .content-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 340px;
       gap: 22px;
       padding-top: 22px;
     }
@@ -752,7 +790,7 @@
 
     .rule-line {
       display: grid;
-      grid-template-columns: minmax(120px, 190px) minmax(0, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       align-items: start;
       border-radius: var(--radius-kumo-sm);
@@ -863,78 +901,6 @@
       white-space: pre;
     }
 
-    .context-panel {
-      position: sticky;
-      top: 28px;
-      align-self: start;
-      display: grid;
-      gap: 16px;
-    }
-
-    .info-block {
-      display: grid;
-      gap: 10px;
-      border: 1px solid var(--color-kumo-line);
-      border-radius: var(--radius-kumo);
-      background: var(--color-kumo-base);
-      padding: 16px;
-      box-shadow: var(--shadow-kumo-xs);
-    }
-
-    .info-title {
-      color: var(--text-color-kumo-strong);
-      font-size: 0.9375rem;
-      font-weight: 650;
-    }
-
-    .endpoint-list {
-      display: grid;
-      gap: 8px;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-
-    .endpoint-list a {
-      display: flex;
-      min-width: 0;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      border-radius: var(--radius-kumo-sm);
-      background: var(--color-kumo-tint);
-      padding: 9px 10px;
-      color: var(--text-color-kumo-default);
-      font-family: var(--mono);
-      font-size: 0.8125rem;
-    }
-
-    .endpoint-list a:hover {
-      background: var(--color-kumo-brand-tint);
-      color: var(--color-kumo-brand-hover);
-    }
-
-    .endpoint-arrow {
-      color: var(--text-color-kumo-subtle);
-      font-family: var(--sans);
-      font-size: 0.875rem;
-    }
-
-    .hint-list {
-      display: grid;
-      gap: 7px;
-      margin: 0;
-      padding: 0;
-      color: var(--text-color-kumo-subtle);
-      font-size: 0.875rem;
-      list-style: none;
-    }
-
-    .hint-list code {
-      color: var(--text-color-kumo-default);
-      font-size: 0.8125rem;
-    }
-
     .page-foot {
       margin-top: 18px;
       color: var(--text-color-kumo-subtle);
@@ -952,17 +918,6 @@
       clip: rect(0, 0, 0, 0);
       white-space: nowrap;
       border: 0;
-    }
-
-    @media (max-width: 1120px) {
-      .content-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .context-panel {
-        position: static;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
     }
 
     @media (max-width: 860px) {
@@ -1051,8 +1006,7 @@
         padding: 14px;
       }
 
-      .metric-grid,
-      .context-panel {
+      .metric-grid {
         grid-template-columns: 1fr;
       }
 
@@ -1132,6 +1086,29 @@
           <li>ipv6</li>
           <li>domain</li>
           <li>keyword</li>
+        </ul>
+      </section>
+
+      <section class="side-section" aria-labelledby="endpoint-title">
+        <p id="endpoint-title" class="side-label">Endpoints</p>
+        <ul class="sidebar-list">
+          <li><a href="/health"><span>/health</span><span class="endpoint-arrow">open</span></a></li>
+          <li><a href="/openapi.json"><span>/openapi.json</span><span class="endpoint-arrow">open</span></a></li>
+          <li><a href="/api/find/auto/example.com"><span>/api/find/auto/{value}</span><span class="endpoint-arrow">open</span></a></li>
+          <li><a href="/api/list/cn"><span>/api/list/{ruleset}</span><span class="endpoint-arrow">open</span></a></li>
+          <li><a href="/api/list-category/cn"><span>/api/list-category/{text}</span><span class="endpoint-arrow">open</span></a></li>
+        </ul>
+      </section>
+
+      <section class="side-section" aria-labelledby="examples-title">
+        <p id="examples-title" class="side-label">Examples</p>
+        <ul class="sidebar-list">
+          <li><code>1.1.1.1</code></li>
+          <li><code>1.1.1.0/24</code></li>
+          <li><code>2606:4700:4700::1111</code></li>
+          <li><code>example.com</code></li>
+          <li><code>cn</code></li>
+          <li><code>apple-cn</code></li>
         </ul>
       </section>
 
@@ -1273,31 +1250,6 @@
               </details>
             </section>
           </div>
-
-          <aside class="context-panel" aria-label="Reference">
-            <section class="info-block">
-              <h2 class="info-title">Endpoints</h2>
-              <ul class="endpoint-list">
-                <li><a href="/health"><span>/health</span><span class="endpoint-arrow">open</span></a></li>
-                <li><a href="/openapi.json"><span>/openapi.json</span><span class="endpoint-arrow">open</span></a></li>
-                <li><a href="/api/find/auto/example.com"><span>/api/find/auto/{value}</span><span class="endpoint-arrow">open</span></a></li>
-                <li><a href="/api/list/cn"><span>/api/list/{ruleset}</span><span class="endpoint-arrow">open</span></a></li>
-                <li><a href="/api/list-category/cn"><span>/api/list-category/{pattern}</span><span class="endpoint-arrow">open</span></a></li>
-              </ul>
-            </section>
-
-            <section class="info-block">
-              <h2 class="info-title">Examples</h2>
-              <ul class="hint-list">
-                <li><code>1.1.1.1</code></li>
-                <li><code>1.1.1.0/24</code></li>
-                <li><code>2606:4700:4700::1111</code></li>
-                <li><code>example.com</code></li>
-                <li><code>cn</code></li>
-                <li><code>apple-cn</code></li>
-              </ul>
-            </section>
-          </aside>
         </div>
 
         <p class="page-foot"><a href="https://github.com/airium/geogrep" target="_blank" rel="noreferrer">geogrep</a> embedded web UI - <span data-version-label>version loading</span></p>

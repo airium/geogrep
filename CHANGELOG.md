@@ -26,6 +26,8 @@ All notable changes to this project will be documented in this file.
   and `fc`.
 - Web UI category discovery now uses plain text matching and no longer accepts
   regular expressions.
+- Web UI reference links and examples now live in the sidebar, and result rows
+  give category and rule columns equal width.
 
 ## [0.4.1] - 2026-06-30
 
