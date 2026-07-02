@@ -876,3 +876,30 @@ func TestIsMMDBListCacheFileUsesBoundedSchemaProbe(t *testing.T) {
 		t.Fatal("large normal ruleset should not be detected as generated cache")
 	}
 }
+
+func TestWriteMMDBListCacheFileAtomic(t *testing.T) {
+	tmp := t.TempDir()
+	cachePath := filepath.Join(tmp, "geoip.json")
+	first := []byte(fmt.Sprintf(`{"schema":%q,"source_sha256":"old","categories":{}}`, mmdbListCacheSchema))
+	if err := writeMMDBListCacheFileAtomic(cachePath, first); err != nil {
+		t.Fatalf("initial atomic write: %v", err)
+	}
+	second := []byte(fmt.Sprintf(`{"schema":%q,"source_sha256":"new","categories":{"CN":["1.0.1.0/24"]}}`, mmdbListCacheSchema))
+	if err := writeMMDBListCacheFileAtomic(cachePath, second); err != nil {
+		t.Fatalf("replacement atomic write: %v", err)
+	}
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != string(second) {
+		t.Fatalf("cache content=%s want=%s", data, second)
+	}
+	entries, err := os.ReadDir(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "geoip.json" {
+		t.Fatalf("unexpected temp files after atomic write: %v", entries)
+	}
+}

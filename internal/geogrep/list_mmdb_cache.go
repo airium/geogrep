@@ -184,18 +184,22 @@ func writeMMDBListCache(sourcePath string, doc *mmdbListCacheDocument) {
 	if doc == nil {
 		return
 	}
-	if !canWriteMMDBListCache(sourcePath) {
+	cachePath := mmdbListCachePath(sourcePath)
+	if !canWriteMMDBListCachePath(cachePath) {
 		return
 	}
 	data, err := json.Marshal(doc)
 	if err != nil {
 		return
 	}
-	_ = os.WriteFile(mmdbListCachePath(sourcePath), data, 0o644)
+	_ = writeMMDBListCacheFileAtomic(cachePath, data)
 }
 
 func canWriteMMDBListCache(sourcePath string) bool {
-	cachePath := mmdbListCachePath(sourcePath)
+	return canWriteMMDBListCachePath(mmdbListCachePath(sourcePath))
+}
+
+func canWriteMMDBListCachePath(cachePath string) bool {
 	data, err := os.ReadFile(cachePath)
 	if os.IsNotExist(err) {
 		return true
@@ -210,6 +214,38 @@ func canWriteMMDBListCache(sourcePath string) bool {
 		return false
 	}
 	return probe.Schema == mmdbListCacheSchema
+}
+
+func writeMMDBListCacheFileAtomic(cachePath string, data []byte) error {
+	dir := filepath.Dir(cachePath)
+	base := filepath.Base(cachePath)
+	file, err := os.CreateTemp(dir, "."+base+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := file.Name()
+	committed := false
+	defer func() {
+		_ = file.Close()
+		if !committed {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if _, err := file.Write(data); err != nil {
+		return err
+	}
+	if err := file.Chmod(0o644); err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, cachePath); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 func isMMDBListCacheFile(path string) bool {
