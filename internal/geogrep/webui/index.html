@@ -1294,7 +1294,7 @@
                 <li><code>2606:4700:4700::1111</code></li>
                 <li><code>example.com</code></li>
                 <li><code>cn</code></li>
-                <li><code>^cn$</code></li>
+                <li><code>apple-cn</code></li>
               </ul>
             </section>
           </aside>
@@ -1422,10 +1422,10 @@
         typeEl.disabled = isList || isCategoryList;
         includeMMDBFieldEl.classList.toggle("hidden", !(isList || isCategoryList));
         if (isCategoryList) {
-          valueLabelEl.textContent = "Category regex";
-          valueEl.placeholder = "cn, ^cn$, google|apple";
+          valueLabelEl.textContent = "Category text";
+          valueEl.placeholder = "cn, google, apple-cn";
           buttonLabelEl.textContent = "Find categories";
-          requestDescriptionEl.textContent = "Find category names by regular expression.";
+          requestDescriptionEl.textContent = "Find category names by text.";
           endpointBadgeEl.textContent = "GET /api/list-category";
           return;
         }
@@ -1793,7 +1793,7 @@
         matchesEl.innerHTML = cards.join("");
 
         if (cards.length === 0) {
-          showEmptyState("No categories found.", "No loaded database exposed a category matching the regex.");
+          showEmptyState("No categories found.", "No loaded database exposed a category matching that text.");
         } else {
           hideEmptyState();
         }
@@ -1880,7 +1880,7 @@
         setMetrics(mode === "list-rule" ? "list-rule" : mode === "find-category" ? "find-category" : type, 0, 0);
 
         if (!value) {
-          setStatus(mode === "list-rule" ? "Ruleset is required." : mode === "find-category" ? "Category regex is required." : "Input is required.", "error");
+          setStatus(mode === "list-rule" ? "Ruleset is required." : mode === "find-category" ? "Category text is required." : "Input is required.", "error");
           clearResultArea();
           rawEl.textContent = "No request has been made yet.";
           return;

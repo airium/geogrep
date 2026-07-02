@@ -51,6 +51,7 @@ type CLIConfig struct {
 	ConvertTo        string
 	Rulesets         []string
 	CategoryPatterns []string
+	CategoryRegex    bool
 	ReportEmpty      bool
 	IncludeMMDB      bool
 	Verbose          int

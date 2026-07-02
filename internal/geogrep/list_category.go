@@ -50,7 +50,9 @@ type CategoryListDocument struct {
 
 type compiledCategoryPattern struct {
 	Pattern string
+	Regex   bool
 	Expr    *regexp.Regexp
+	Needle  string
 }
 
 func runListAllCategories(cfg CLIConfig) int {
@@ -87,9 +89,9 @@ func runListAllCategories(cfg CLIConfig) int {
 }
 
 func runListCategory(cfg CLIConfig) int {
-	patterns, err := compileCategoryPatterns(cfg.CategoryPatterns)
+	patterns, err := compileCategoryPatterns(cfg.CategoryPatterns, cfg.CategoryRegex)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "category regex error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "category search error: %v\n", err)
 		return 2
 	}
 
@@ -108,7 +110,7 @@ func runListCategory(cfg CLIConfig) int {
 		printDiagnostics(diagnostics)
 	}
 
-	opts := resolveListOptions(databases, listOptions{IncludeMMDB: cfg.IncludeMMDB})
+	opts := resolveListOptions(databases, listOptions{IncludeMMDB: cfg.IncludeMMDB, Regex: cfg.CategoryRegex})
 	printListMMDBNotice(databases, cfg.IncludeMMDB, opts.IncludeMMDB)
 
 	results := listCategoriesWithCompiledPatterns(databases, patterns, opts)
@@ -139,25 +141,31 @@ func listCategories(databases []LoadedDatabase, patterns []string) ([]listedCate
 }
 
 func listCategoriesWithOptions(databases []LoadedDatabase, patterns []string, opts listOptions) ([]listedCategoryPattern, error) {
-	compiled, err := compileCategoryPatterns(patterns)
+	compiled, err := compileCategoryPatterns(patterns, opts.Regex)
 	if err != nil {
 		return nil, err
 	}
 	return listCategoriesWithCompiledPatterns(databases, compiled, opts), nil
 }
 
-func compileCategoryPatterns(patterns []string) ([]compiledCategoryPattern, error) {
+func compileCategoryPatterns(patterns []string, regex bool) ([]compiledCategoryPattern, error) {
 	compiled := make([]compiledCategoryPattern, 0, len(patterns))
 	for _, pattern := range patterns {
 		pattern = strings.TrimSpace(pattern)
 		if pattern == "" {
-			return nil, fmt.Errorf("empty category regex")
+			return nil, fmt.Errorf("empty category search value")
 		}
-		expr, err := regexp.Compile("(?i)(?:" + pattern + ")")
-		if err != nil {
-			return nil, fmt.Errorf("%q: %w", pattern, err)
+		item := compiledCategoryPattern{Pattern: pattern, Regex: regex}
+		if regex {
+			expr, err := regexp.Compile("(?i)(?:" + pattern + ")")
+			if err != nil {
+				return nil, fmt.Errorf("%q: %w", pattern, err)
+			}
+			item.Expr = expr
+		} else {
+			item.Needle = strings.ToLower(pattern)
 		}
-		compiled = append(compiled, compiledCategoryPattern{Pattern: pattern, Expr: expr})
+		compiled = append(compiled, item)
 	}
 	return compiled, nil
 }
@@ -170,13 +178,20 @@ func listCategoriesWithCompiledPatterns(databases []LoadedDatabase, patterns []c
 	for _, pattern := range patterns {
 		result := listedCategoryPattern{Pattern: pattern.Pattern}
 		for _, category := range categories {
-			if pattern.Expr.MatchString(category.Category) {
+			if categoryPatternMatches(pattern, category.Category) {
 				result.Categories = append(result.Categories, category)
 			}
 		}
 		results = append(results, result)
 	}
 	return results
+}
+
+func categoryPatternMatches(pattern compiledCategoryPattern, category string) bool {
+	if pattern.Regex {
+		return pattern.Expr != nil && pattern.Expr.MatchString(category)
+	}
+	return strings.Contains(strings.ToLower(category), pattern.Needle)
 }
 
 func collectListedCategories(databases []LoadedDatabase, opts listOptions) []listedCategory {

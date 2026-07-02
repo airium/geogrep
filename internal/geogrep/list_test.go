@@ -97,7 +97,7 @@ func TestListRulesetsMatchesGeoIPCategoryCaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestListCategoriesMatchesRegexCaseInsensitive(t *testing.T) {
+func TestListCategoriesMatchesPlainTextCaseInsensitive(t *testing.T) {
 	results, err := listCategories([]LoadedDatabase{{
 		Name: "geoip.dat",
 		Sources: []LoadedSource{{
@@ -141,6 +141,37 @@ func TestListCategoriesMatchesRegexCaseInsensitive(t *testing.T) {
 	}
 	if results[0].Categories[1].Database != "geosite.dat" || results[0].Categories[1].Category != "apple-cn" {
 		t.Fatalf("second category=%#v want geosite.dat apple-cn", results[0].Categories[1])
+	}
+}
+
+func TestListCategoriesMatchesRegexOnlyWhenEnabled(t *testing.T) {
+	databases := []LoadedDatabase{{
+		Name: "geoip.dat",
+		Sources: []LoadedSource{{
+			Display: "geoip.dat",
+			Format:  "dat",
+			GeoIPRules: []GeoIPRule{{
+				SubEntry: "CN",
+				Rule:     "1.0.1.0/24",
+				Prefix:   netip.MustParsePrefix("1.0.1.0/24"),
+			}},
+		}},
+	}}
+
+	results, err := listCategories(databases, []string{"^cn$"})
+	if err != nil {
+		t.Fatalf("listCategories returned error: %v", err)
+	}
+	if len(results) != 1 || len(results[0].Categories) != 0 {
+		t.Fatalf("plain text regex-looking search=%#v want no literal match", results)
+	}
+
+	results, err = listCategoriesWithOptions(databases, []string{"^cn$"}, listOptions{Regex: true})
+	if err != nil {
+		t.Fatalf("listCategoriesWithOptions returned error: %v", err)
+	}
+	if len(results) != 1 || len(results[0].Categories) != 1 {
+		t.Fatalf("regex search=%#v want one category", results)
 	}
 }
 
@@ -402,7 +433,7 @@ func TestListAllCategoriesUsesListMMDBOptions(t *testing.T) {
 }
 
 func TestListCategoriesRejectsInvalidRegex(t *testing.T) {
-	_, err := listCategories(nil, []string{"["})
+	_, err := listCategoriesWithOptions(nil, []string{"["}, listOptions{Regex: true})
 	if err == nil {
 		t.Fatal("expected invalid regex error")
 	}

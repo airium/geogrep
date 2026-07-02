@@ -289,13 +289,13 @@ func makeListOperation() map[string]any {
 
 func makeListCategoryOperation() map[string]any {
 	return map[string]any{
-		"summary": "List category names by regex",
+		"summary": "List category names by text",
 		"parameters": []map[string]any{
 			{
 				"name":        "pattern",
 				"in":          "path",
 				"required":    true,
-				"description": "Case-insensitive category name regular expression",
+				"description": "Case-insensitive category search text",
 				"schema": map[string]any{
 					"type": "string",
 				},
@@ -352,7 +352,7 @@ func (s *webRuntime) handleMissingListCategoryPattern(w http.ResponseWriter, r *
 		writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	writeAPIError(w, http.StatusBadRequest, "missing category regex in path")
+	writeAPIError(w, http.StatusBadRequest, "missing category search value in path")
 }
 
 func (s *webRuntime) handleAPIList(w http.ResponseWriter, r *http.Request) {
@@ -408,7 +408,7 @@ func (s *webRuntime) handleAPIListCategory(w http.ResponseWriter, r *http.Reques
 	escapedPath := r.URL.EscapedPath()
 	escapedPattern := strings.TrimPrefix(escapedPath, "/api/list-category/")
 	if escapedPattern == "" {
-		writeAPIError(w, http.StatusBadRequest, "missing category regex in path")
+		writeAPIError(w, http.StatusBadRequest, "missing category search value in path")
 		return
 	}
 
@@ -419,18 +419,18 @@ func (s *webRuntime) handleAPIListCategory(w http.ResponseWriter, r *http.Reques
 	}
 	pattern = strings.TrimSpace(pattern)
 	if pattern == "" {
-		writeAPIError(w, http.StatusBadRequest, "empty category regex")
+		writeAPIError(w, http.StatusBadRequest, "empty category search value")
 		return
 	}
 	if len(pattern) > maxLookupValueLength {
-		writeAPIError(w, http.StatusRequestURITooLong, "category regex too long")
+		writeAPIError(w, http.StatusRequestURITooLong, "category search value too long")
 		return
 	}
 	includeMMDB := parseBoolQuery(r.URL.Query().Get("include_mmdb")) ||
 		parseBoolQuery(r.URL.Query().Get("includeMMDB"))
 	opts := resolveListOptions(s.databases, listOptions{IncludeMMDB: includeMMDB})
 
-	compiled, err := compileCategoryPatterns([]string{pattern})
+	compiled, err := compileCategoryPatterns([]string{pattern}, false)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, err.Error())
 		return
@@ -536,7 +536,7 @@ func (s *webRuntime) handleAPIOnlyRoot(w http.ResponseWriter, r *http.Request) {
 			"GET /api/find/domain/<domain>",
 			"GET /api/find/keyword/<keyword>",
 			"GET /api/list/<ruleset>",
-			"GET /api/list-category/<pattern>",
+			"GET /api/list-category/<text>",
 		},
 	})
 }

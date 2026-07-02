@@ -97,7 +97,7 @@ func TestParseCLIArgsListRuleRequiresRuleset(t *testing.T) {
 }
 
 func TestParseCLIArgsFindCategory(t *testing.T) {
-	cfg, err := parseCLIArgs([]string{"find-category", "--include-mmdb", "--json", "/tmp/categories.json", "-db", "/tmp/db", "cn", "^google$"})
+	cfg, err := parseCLIArgs([]string{"find-category", "--regex", "--include-mmdb", "--json", "/tmp/categories.json", "-db", "/tmp/db", "cn", "^google$"})
 	if err != nil {
 		t.Fatalf("parseCLIArgs returned error: %v", err)
 	}
@@ -112,6 +112,9 @@ func TestParseCLIArgsFindCategory(t *testing.T) {
 	}
 	if !cfg.IncludeMMDB {
 		t.Fatal("include_mmdb should be true")
+	}
+	if !cfg.CategoryRegex {
+		t.Fatal("category regex should be true")
 	}
 	if len(cfg.CategoryPatterns) != 2 || cfg.CategoryPatterns[0] != "cn" || cfg.CategoryPatterns[1] != "^google$" {
 		t.Fatalf("category patterns=%v want [cn ^google$]", cfg.CategoryPatterns)
@@ -134,7 +137,7 @@ func TestParseCLIArgsFindCategoryShortcut(t *testing.T) {
 func TestParseCLIArgsFindCategoryRequiresPattern(t *testing.T) {
 	_, err := parseCLIArgs([]string{"find-category", "-db", "/tmp/db"})
 	if err == nil {
-		t.Fatal("expected error for missing category regex")
+		t.Fatal("expected error for missing category search value")
 	}
 }
 

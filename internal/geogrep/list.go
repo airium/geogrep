@@ -38,6 +38,7 @@ type ListDocument struct {
 
 type listOptions struct {
 	IncludeMMDB bool
+	Regex       bool
 }
 
 func runList(cfg CLIConfig) int {

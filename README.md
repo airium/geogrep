@@ -60,8 +60,11 @@ Prepare a directory of geodata files, then run:
 # List every category exposed by loaded databases.
 ./geogrep list-category -db <dir/to/db>
 
-# Find databases and category names matching a regex.
+# Find databases and category names containing text.
 ./geogrep find-category -db <dir/to/db> cn
+
+# Find category names with a regular expression from the CLI.
+./geogrep find-category -db <dir/to/db> --regex '^cn$'
 
 # Include MMDB/MetaDB category names when listing all categories.
 ./geogrep lc -db <dir/to/db> --include-mmdb
@@ -73,7 +76,7 @@ Prepare a directory of geodata files, then run:
 ./geogrep lc -db <dir/to/db> --json ./category-list.json
 
 # Export category discovery.
-./geogrep find-category -db <dir/to/db> '^cn$' --json ./categories.json
+./geogrep find-category -db <dir/to/db> cn --json ./categories.json
 
 # Export a ruleset listing.
 ./geogrep lr -db <dir/to/db> cn --json ./list.json
@@ -119,7 +122,7 @@ geogrep find-rule|fr [--json RESULT_PATH] [-v|--verbose[=N]] [-db|--database DB_
 
 geogrep list-rule|lr [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] RULESET_NAME [...]
 
-geogrep find-category|fc [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] CATEGORY_REGEX [...]
+geogrep find-category|fc [--regex] [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] CATEGORY_TEXT [...]
 
 geogrep list-category|lc [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE]
 
@@ -139,6 +142,9 @@ Options:
   supported files, it falls back to the executable directory.
 - `--json PATH`: write structured JSON output for `find-rule`, `list-rule`,
   `find-category`, or `list-category`.
+- `--regex`: treat `find-category` search values as case-insensitive regular
+  expressions. Without this flag, `find-category` uses case-insensitive plain
+  text matching.
 - `--include-mmdb`: include MMDB/MetaDB data in `list-rule`, `find-category`,
   or `list-category` output. This is enabled automatically when MMDB/MetaDB is
   the only loaded database type. When enabled, geogrep may create a sibling
@@ -153,9 +159,9 @@ Options:
 - `-k VALUE`: force keyword parsing.
 - `RULESET_NAME`: exact ruleset/category name to list with `geogrep list-rule`.
   Multiple names can be supplied.
-- `CATEGORY_REGEX`: case-insensitive regular expression used by
-  `geogrep find-category` to find matching category names. Multiple patterns
-  can be supplied.
+- `CATEGORY_TEXT`: case-insensitive plain text used by `geogrep find-category`
+  to find matching category names. Multiple search values can be supplied. Add
+  `--regex` to interpret these values as regular expressions.
 - `-i PATH`, `--input PATH`: input file or directory for `convert`.
 - `-o PATH`, `--output PATH`: output file for `convert`.
 - `--to FORMAT`: output format for `convert`. If omitted, the format is
@@ -188,14 +194,15 @@ Routes:
 - `GET /api/find/keyword/<keyword>`
 - `GET /api/list/<ruleset>`; add `?include_mmdb=true` to include MMDB/MetaDB
   list output when it is not auto-included.
-- `GET /api/list-category/<pattern>`; add `?include_mmdb=true` to include
-  MMDB/MetaDB category names when they are not auto-included.
+- `GET /api/list-category/<text>`; add `?include_mmdb=true` to include
+  MMDB/MetaDB category names when they are not auto-included. This endpoint
+  uses case-insensitive plain text matching.
 - `GET /find/<type>/<value>` redirects to the UI with
   `?mode=find-rule&type=<type>&q=<value>`.
 - `GET /find/list-rule/<ruleset>` redirects to the UI with
   `?mode=list-rule&q=<ruleset>`.
-- `GET /find/find-category/<pattern>` redirects to the UI with
-  `?mode=find-category&q=<pattern>`.
+- `GET /find/find-category/<text>` redirects to the UI with
+  `?mode=find-category&q=<text>`.
 - Legacy share routes `/find/list/<ruleset>` and
   `/find/list-category/<pattern>` redirect to the new UI mode names.
 
@@ -209,14 +216,14 @@ curl "http://127.0.0.1:8080/api/find/domain/google.com"
 curl "http://127.0.0.1:8080/api/find/ipv4/1.1.1.0/24"
 curl "http://127.0.0.1:8080/api/list/cn"
 curl "http://127.0.0.1:8080/api/list/cn?include_mmdb=true"
-curl "http://127.0.0.1:8080/api/list-category/%5Ecn%24"
-curl "http://127.0.0.1:8080/api/list-category/%5Ecn%24?include_mmdb=true"
+curl "http://127.0.0.1:8080/api/list-category/cn"
+curl "http://127.0.0.1:8080/api/list-category/cn?include_mmdb=true"
 ```
 
 Built-in UI behavior:
 
 - Root `/` serves the embedded static UI unless `--api-only` is set.
-- The UI can find matching rules, list rulesets, find category names by regex,
+- The UI can find matching rules, list rulesets, find category names by text,
   toggle MMDB output for list modes, copy share/API URLs,
   expand long result groups, and inspect the raw JSON response.
 - The UI displays the running geogrep version reported by `/health`.
@@ -342,16 +349,17 @@ database, then lists `source | format | category` rows. It supports automatic
 database discovery, explicit `-db/--database` selection, `--include-mmdb`, and
 `--json`. JSON export includes metadata and a top-level `categories` array.
 
-`geogrep find-category` prints each requested regex pattern, grouped by
-matching database, then lists `source | format | category` rows. Regex matching
-is case-insensitive by default, so `cn` matches both `CN` and names such as
-`apple-cn`. MMDB/MetaDB category names are skipped unless `--include-mmdb` is
-set or MMDB/MetaDB is the only loaded database type. When a valid MMDB/MetaDB
-list cache includes `category_names`, category discovery reads that compact key
+`geogrep find-category` prints each requested category search value, grouped by
+matching database, then lists `source | format | category` rows. Matching is
+case-insensitive plain text by default, so `cn` matches both `CN` and names such
+as `apple-cn`. Add `--regex` to use case-insensitive regular expressions from
+the CLI. MMDB/MetaDB category names are skipped unless `--include-mmdb` is set
+or MMDB/MetaDB is the only loaded database type. When a valid MMDB/MetaDB list
+cache includes `category_names`, category discovery reads that compact key
 directly instead of loading category-to-rule data or walking every MMDB network.
 Find-category JSON export includes metadata and one result object per requested
-pattern, with each category carrying database, source, format, and category
-fields.
+search value, with each category carrying database, source, format, and
+category fields.
 
 JSON export includes:
 

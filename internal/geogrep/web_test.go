@@ -391,22 +391,25 @@ func TestAPIListCategoryHandlerAutoIncludesMMDBOnlyDatabases(t *testing.T) {
 	}
 }
 
-func TestAPIListCategoryHandlerRejectsInvalidRegex(t *testing.T) {
+func TestAPIListCategoryHandlerTreatsRegexSyntaxAsText(t *testing.T) {
 	runtime := &webRuntime{}
 	req := httptest.NewRequest(http.MethodGet, "/api/list-category/%5B", nil)
 	rr := httptest.NewRecorder()
 
 	runtime.handleAPIListCategory(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("status=%d want=%d", rr.Code, http.StatusBadRequest)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
 	}
-	var payload apiErrorResponse
+	var payload apiListCategoryResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
 	}
-	if !strings.Contains(payload.Error, "[") {
-		t.Fatalf("error=%q want regex context", payload.Error)
+	if payload.Request.Pattern != "[" {
+		t.Fatalf("pattern=%q want [", payload.Request.Pattern)
+	}
+	if len(payload.Result.Results) != 1 {
+		t.Fatalf("results=%d want=1", len(payload.Result.Results))
 	}
 }
 

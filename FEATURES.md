@@ -31,8 +31,10 @@ capabilities added through the repository history.
 
 - Lists every category exposed by loaded databases with `geogrep list-category`
   or `geogrep lc`.
-- Lists databases and category names matching case-insensitive regular
-  expressions with `geogrep find-category` or `geogrep fc`.
+- Lists databases and category names matching case-insensitive plain text with
+  `geogrep find-category` or `geogrep fc`.
+- `geogrep find-category --regex` enables case-insensitive regular expression
+  matching for CLI category discovery.
 - Supports `-db/--database` for explicit database root or single-file
   selection.
 - Uses the same MMDB/MetaDB policy as ruleset listing: skipped by default when
@@ -45,9 +47,9 @@ capabilities added through the repository history.
 - Uses the same meaningful category names as ruleset listing, including source
   filename stems for sparse files and opt-in categories derived from
   MMDB/MetaDB records.
-- Category listing is CLI-only; regex category discovery is also exposed
+- Category listing is CLI-only; plain-text category discovery is also exposed
   through the API and web UI.
-- Exposes category discovery through `GET /api/list-category/<pattern>` and
+- Exposes category discovery through `GET /api/list-category/<text>` and
   embedded web UI category mode.
 
 ### Input Modes
@@ -108,9 +110,10 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - `geogrep list-rule|lr [--include-mmdb] [-db DB_DIR|DB_FILE] RULESET_NAME
   [...]` lists every rule from exact, case-insensitive ruleset/category names
   across loaded databases.
-- `geogrep find-category|fc [--include-mmdb] [-db DB_DIR|DB_FILE]
-  CATEGORY_REGEX [...]` lists which loaded databases contain category names
-  matching case-insensitive regex patterns.
+- `geogrep find-category|fc [--regex] [--include-mmdb] [-db DB_DIR|DB_FILE]
+  CATEGORY_TEXT [...]` lists which loaded databases contain category names
+  matching case-insensitive plain text, or case-insensitive regex patterns when
+  `--regex` is supplied.
 - `geogrep list-category|lc [--include-mmdb] [-db DB_DIR|DB_FILE]` lists all
   loaded category names.
 - `geogrep list-rule --json PATH ...` writes structured list output for
@@ -148,12 +151,12 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
   - `GET /api/find/domain/<domain>`
   - `GET /api/find/keyword/<keyword>`
   - `GET /api/list/<ruleset>` with optional `include_mmdb=true`
-  - `GET /api/list-category/<pattern>` with optional `include_mmdb=true`
+  - `GET /api/list-category/<text>` with optional `include_mmdb=true`
 - `--api-only` disables UI routes.
 - `--webui PATH` serves custom static UI files.
 - Share routes under `/find/<type>/<value>` redirect to the UI and auto-run
   find-rule mode; `/find/list-rule/<ruleset>` opens list-rule mode, and
-  `/find/find-category/<pattern>` opens find-category mode. Legacy
+  `/find/find-category/<text>` opens find-category mode. Legacy
   `/find/list/...` and `/find/list-category/...` routes remain accepted.
 
 ### Embedded Web UI
@@ -166,7 +169,7 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
   copy buttons, and raw JSON inspection.
 - List-rule mode uses the same result surface and raw JSON inspection,
   with an MMDB include toggle.
-- Find-category mode lists matching database/category names and supports
+- Find-category mode lists matching database/category names by text and supports
   share/API URL copy plus raw JSON inspection.
 - The UI preserves existing API and share-link behavior.
 
@@ -230,10 +233,10 @@ The project history is compact and linear:
   - Added explicit MMDB/MetaDB opt-in for list output, MMDB-only auto-inclusion,
     compact source-hash-checked list caches, discovery ignores for generated
     caches, and web/API include toggles.
-- `feat: add category regex listing`
+- `feat: add category listing`
   - Added `geogrep list-category`, `--json` export, `GET
-    /api/list-category/<pattern>`, share redirects, and web UI category mode
-    for finding databases and category names by case-insensitive regex pattern.
+    /api/list-category/<text>`, share redirects, and web UI category mode for
+    finding databases and category names.
 - `build(release): bump version to 0.3.1`
   - Released loader validation hardening, atomic conversion output replacement,
     improved invalid-rule reporting, AdGuard domain matcher behavior, embedded

@@ -242,6 +242,8 @@ func parseFindCategoryArgs(args []string) (CLIConfig, error) {
 		switch {
 		case arg == "--":
 			stopFlagParsing = true
+		case arg == "--regex":
+			cfg.CategoryRegex = true
 		case arg == "--include-mmdb":
 			cfg.IncludeMMDB = true
 		case strings.HasPrefix(arg, "--json="):
@@ -264,7 +266,7 @@ func parseFindCategoryArgs(args []string) (CLIConfig, error) {
 	}
 
 	if len(cfg.CategoryPatterns) == 0 {
-		return CLIConfig{}, errors.New("find-category requires at least one category regex")
+		return CLIConfig{}, errors.New("find-category requires at least one category search value")
 	}
 
 	return cfg, nil

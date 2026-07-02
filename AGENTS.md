@@ -39,8 +39,10 @@ Important paths:
   or more exact case-insensitive ruleset names. For grouped sparse files, the
   direct child directory is the database, each direct file is the ruleset, and
   each file line is a rule.
-- `find-category` supports `-db/--database`, `--include-mmdb`, `--json`, and
-  one or more case-insensitive regex patterns for category discovery.
+- `find-category` supports `-db/--database`, `--include-mmdb`, `--json`,
+  optional `--regex`, and one or more case-insensitive plain text search values
+  for category discovery. With `--regex`, the CLI treats search values as
+  case-insensitive regex patterns.
 - `list-category` supports `-db/--database`, `--include-mmdb`, and `--json`
   for CLI-only category inventory.
 - `convert` supports `-i/--input`, `-o/--output`, and `--to`.
@@ -56,10 +58,10 @@ Important paths:
   - `/api/find/domain/<value>`
   - `/api/find/keyword/<value>`
   - `/api/list/<ruleset>`
-  - `/api/list-category/<pattern>`
+  - `/api/list-category/<text>`
 - Share routes under `/find/<type>/<value>` redirect to
   `/?mode=find-rule&type=...&q=...`. `/find/list-rule/<ruleset>` redirects to
-  `/?mode=list-rule&q=...`. `/find/find-category/<pattern>` redirects to
+  `/?mode=list-rule&q=...`. `/find/find-category/<text>` redirects to
   `/?mode=find-category&q=...`. Legacy `/find/list/...` and
   `/find/list-category/...` routes redirect to the new UI mode names.
 - API responses must not expose local database root paths or loader diagnostics.
