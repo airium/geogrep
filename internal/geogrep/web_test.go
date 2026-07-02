@@ -90,6 +90,22 @@ func TestHandleShareRedirectListIncludeMMDB(t *testing.T) {
 	}
 }
 
+func TestHandleShareRedirectListCategory(t *testing.T) {
+	runtime := &webRuntime{}
+	req := httptest.NewRequest(http.MethodGet, "/find/list-category/%5Ecn%24?include_mmdb=true", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleShareRedirect(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusFound)
+	}
+	location := rr.Header().Get("Location")
+	if location != "/?mode=list-category&q=%5Ecn%24&include_mmdb=true" {
+		t.Fatalf("location=%s want=/?mode=list-category&q=%%5Ecn%%24&include_mmdb=true", location)
+	}
+}
+
 func TestAPIFindDomainHandler(t *testing.T) {
 	runtime := &webRuntime{
 		cfg:       CLIConfig{ReportEmpty: true},
@@ -238,6 +254,130 @@ func TestAPIListHandlerAutoIncludesMMDBOnlyDatabases(t *testing.T) {
 	}
 }
 
+func TestAPIListCategoryHandler(t *testing.T) {
+	runtime := &webRuntime{
+		discovery: DiscoveryResult{Databases: []DiscoveredDatabase{{Name: "geosite.dat"}}},
+		databases: []LoadedDatabase{{
+			Name: "geosite.dat",
+			Sources: []LoadedSource{{
+				Display: "geosite.dat",
+				Format:  "dat",
+				DomainRule: []DomainRule{{
+					SubEntry: "google-cn",
+					Rule:     "domain:google.cn",
+					Kind:     DomainExact,
+					Value:    "google.cn",
+				}},
+			}},
+		}},
+		diagnostics: []Diagnostic{{
+			Level:   "warning",
+			Scope:   "foo",
+			Message: "bar",
+		}},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/list-category/cn", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleAPIListCategory(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+
+	var payload apiListCategoryResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if payload.Request.Pattern != "cn" {
+		t.Fatalf("request.pattern=%s want=cn", payload.Request.Pattern)
+	}
+	if payload.Request.IncludeMMDB {
+		t.Fatal("include_mmdb should default to false")
+	}
+	if payload.Result.Metadata.PatternCount != 1 {
+		t.Fatalf("pattern_count=%d want=1", payload.Result.Metadata.PatternCount)
+	}
+	if len(payload.Result.Results) != 1 || len(payload.Result.Results[0].Categories) != 1 {
+		t.Fatalf("results=%#v want one category", payload.Result.Results)
+	}
+	if payload.Result.Results[0].Categories[0].Category != "google-cn" {
+		t.Fatalf("category=%s want=google-cn", payload.Result.Results[0].Categories[0].Category)
+	}
+	if len(payload.Result.Diagnostics) != 0 {
+		t.Fatalf("diagnostics=%d want=0", len(payload.Result.Diagnostics))
+	}
+}
+
+func TestAPIListCategoryHandlerIncludeMMDBQuery(t *testing.T) {
+	runtime := &webRuntime{
+		discovery: DiscoveryResult{Databases: []DiscoveredDatabase{{Name: "geoip.dat"}}},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/list-category/cn?include_mmdb=true", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleAPIListCategory(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	var payload apiListCategoryResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if !payload.Request.IncludeMMDB {
+		t.Fatal("expected include_mmdb=true in response request")
+	}
+}
+
+func TestAPIListCategoryHandlerAutoIncludesMMDBOnlyDatabases(t *testing.T) {
+	runtime := &webRuntime{
+		discovery: DiscoveryResult{Databases: []DiscoveredDatabase{{Name: "geoip.mmdb"}}},
+		databases: []LoadedDatabase{{
+			Name: "geoip.mmdb",
+			Sources: []LoadedSource{{
+				Display: "geoip.mmdb",
+				Format:  "mmdb",
+				MMDB:    &MMDBSource{},
+			}},
+		}},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/list-category/cn", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleAPIListCategory(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d want=%d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	var payload apiListCategoryResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if !payload.Request.IncludeMMDB {
+		t.Fatal("expected include_mmdb to be auto-enabled for MMDB-only databases")
+	}
+}
+
+func TestAPIListCategoryHandlerRejectsInvalidRegex(t *testing.T) {
+	runtime := &webRuntime{}
+	req := httptest.NewRequest(http.MethodGet, "/api/list-category/%5B", nil)
+	rr := httptest.NewRecorder()
+
+	runtime.handleAPIListCategory(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d want=%d", rr.Code, http.StatusBadRequest)
+	}
+	var payload apiErrorResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if !strings.Contains(payload.Error, "[") {
+		t.Fatalf("error=%q want regex context", payload.Error)
+	}
+}
+
 func TestAPIListHandlerMissingRuleset(t *testing.T) {
 	runtime := &webRuntime{}
 	req := httptest.NewRequest(http.MethodGet, "/api/list", nil)
@@ -319,6 +459,9 @@ func TestHandleOpenAPI(t *testing.T) {
 	if !strings.Contains(body, "\"/api/list/{ruleset}\"") {
 		t.Fatalf("expected /api/list path in schema, got: %s", body)
 	}
+	if !strings.Contains(body, "\"/api/list-category/{pattern}\"") {
+		t.Fatalf("expected /api/list-category path in schema, got: %s", body)
+	}
 }
 
 func TestEmbeddedWebUIShowsRuntimeVersion(t *testing.T) {
@@ -335,6 +478,9 @@ func TestEmbeddedWebUIShowsRuntimeVersion(t *testing.T) {
 	}
 	if !strings.Contains(html, `"version " + version`) {
 		t.Fatal("expected embedded UI to render returned version")
+	}
+	if !strings.Contains(html, `value="list-category"`) || !strings.Contains(html, `/api/list-category/`) {
+		t.Fatal("expected embedded UI to include category discovery mode")
 	}
 }
 

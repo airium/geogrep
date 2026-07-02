@@ -1186,6 +1186,7 @@
                     <select id="request-mode" name="mode" data-kumo-component="Select">
                       <option value="find">lookup</option>
                       <option value="list">list</option>
+                      <option value="list-category">categories</option>
                     </select>
                   </div>
                   <div class="field">
@@ -1255,7 +1256,7 @@
                   <span id="metric-databases" class="metric-value">0</span>
                 </div>
                 <div class="metric">
-                  <span class="metric-label">Rules</span>
+                  <span id="metric-rules-label" class="metric-label">Rules</span>
                   <span id="metric-rules" class="metric-value">0</span>
                 </div>
               </div>
@@ -1281,6 +1282,7 @@
                 <li><a href="/openapi.json"><span>/openapi.json</span><span class="endpoint-arrow">open</span></a></li>
                 <li><a href="/api/find/auto/example.com"><span>/api/find/auto/{value}</span><span class="endpoint-arrow">open</span></a></li>
                 <li><a href="/api/list/cn"><span>/api/list/{ruleset}</span><span class="endpoint-arrow">open</span></a></li>
+                <li><a href="/api/list-category/cn"><span>/api/list-category/{pattern}</span><span class="endpoint-arrow">open</span></a></li>
               </ul>
             </section>
 
@@ -1292,6 +1294,7 @@
                 <li><code>2606:4700:4700::1111</code></li>
                 <li><code>example.com</code></li>
                 <li><code>cn</code></li>
+                <li><code>^cn$</code></li>
               </ul>
             </section>
           </aside>
@@ -1326,6 +1329,7 @@
       var copyAPIEl = document.getElementById("copy-api");
       var metricModeEl = document.getElementById("metric-mode");
       var metricDatabasesEl = document.getElementById("metric-databases");
+      var metricRulesLabelEl = document.getElementById("metric-rules-label");
       var metricRulesEl = document.getElementById("metric-rules");
       var emptyStateEl = document.getElementById("empty-state");
       var emptyTitleEl = document.getElementById("empty-title");
@@ -1336,8 +1340,8 @@
       var currentAPIURL = "";
 
       function sanitizeMode(mode) {
-        if (mode === "list") {
-          return "list";
+        if (mode === "list" || mode === "list-category") {
+          return mode;
         }
         return "find";
       }
@@ -1357,6 +1361,13 @@
           }
           return path;
         }
+        if (mode === "list-category") {
+          var categoryPath = "/api/list-category/" + encodeURIComponent(value);
+          if (includeMMDB) {
+            categoryPath += "?include_mmdb=true";
+          }
+          return categoryPath;
+        }
         return "/api/find/" + type + "/" + encodeURIComponent(value);
       }
 
@@ -1367,6 +1378,13 @@
             path += "?include_mmdb=true";
           }
           return path;
+        }
+        if (mode === "list-category") {
+          var categoryPath = "/find/list-category/" + encodeURIComponent(value);
+          if (includeMMDB) {
+            categoryPath += "?include_mmdb=true";
+          }
+          return categoryPath;
         }
         return "/find/" + type + "/" + encodeURIComponent(value);
       }
@@ -1391,8 +1409,17 @@
       function syncModeUI() {
         var mode = sanitizeMode(modeEl.value);
         var isList = mode === "list";
-        typeEl.disabled = isList;
-        includeMMDBFieldEl.classList.toggle("hidden", !isList);
+        var isCategoryList = mode === "list-category";
+        typeEl.disabled = isList || isCategoryList;
+        includeMMDBFieldEl.classList.toggle("hidden", !(isList || isCategoryList));
+        if (isCategoryList) {
+          valueLabelEl.textContent = "Category regex";
+          valueEl.placeholder = "cn, ^cn$, google|apple";
+          buttonLabelEl.textContent = "List categories";
+          requestDescriptionEl.textContent = "Enter a category name regular expression.";
+          endpointBadgeEl.textContent = "GET /api/list-category";
+          return;
+        }
         valueLabelEl.textContent = isList ? "Ruleset name" : "Query value";
         valueEl.placeholder = isList ? "cn, private, lan" : "1.1.1.1, 1.1.1.0/24, example.com, google";
         buttonLabelEl.textContent = isList ? "List rules" : "Run lookup";
@@ -1459,6 +1486,7 @@
       function setMetrics(mode, databases, rules) {
         metricModeEl.textContent = mode || "lookup";
         metricDatabasesEl.textContent = String(databases || 0);
+        metricRulesLabelEl.textContent = mode === "categories" || mode === "list-category" ? "Categories" : "Rules";
         metricRulesEl.textContent = String(rules || 0);
       }
 
@@ -1677,6 +1705,91 @@
         }
       }
 
+      function renderListCategorySummary(payload) {
+        var results = payload && payload.result && payload.result.results;
+        setMetrics("categories", 0, 0);
+
+        if (!Array.isArray(results) || results.length === 0) {
+          summaryEl.textContent = "No result payload returned.";
+          matchesEl.innerHTML = "";
+          showEmptyState("No result payload.", "The API response did not include category results.");
+          return;
+        }
+
+        var matchedDB = {};
+        var totalCategories = 0;
+        var cards = [];
+
+        results.forEach(function (result) {
+          var categories = Array.isArray(result && result.categories) ? result.categories : [];
+          totalCategories += categories.length;
+          if (categories.length === 0) {
+            return;
+          }
+
+          var grouped = {};
+          var order = [];
+          categories.forEach(function (category) {
+            var db = String((category && category.database) || "(unknown database)");
+            if (!grouped[db]) {
+              grouped[db] = [];
+              order.push(db);
+              matchedDB[db] = true;
+            }
+            grouped[db].push(category);
+          });
+
+          order.forEach(function (dbName) {
+            var dbCategories = grouped[dbName] || [];
+            var lines = dbCategories.slice(0, 3).map(function (category) {
+              return renderListedCategoryLine(category);
+            });
+            var extraLines = dbCategories.slice(3).map(function (category) {
+              return renderListedCategoryLine(category);
+            });
+            var hasMore = extraLines.length > 0;
+            var countLabel = dbCategories.length + " categor" + (dbCategories.length === 1 ? "y" : "ies");
+            var rowHead = "<div class=\"match-row-top\">" +
+              "<div>" +
+                "<h3 class=\"database-title\">" + escapeHTML(dbName) + "</h3>" +
+                "<div class=\"match-meta\">" +
+                  "<span class=\"badge success\">matched</span>" +
+                  "<span class=\"badge\">" + escapeHTML(result.pattern || "") + "</span>" +
+                  "<span class=\"badge\">" + countLabel + "</span>" +
+                "</div>" +
+              "</div>";
+            var extra = "";
+            var moreHint = "";
+            if (hasMore) {
+              rowHead += "<button type=\"button\" class=\"button small expand-toggle\" data-kumo-component=\"Button\" aria-expanded=\"false\">Show more</button>";
+              extra = "<div class=\"extra-lines\">" + extraLines.join("") + "</div>";
+              moreHint = "<div class=\"more-hint\">+" + extraLines.length + " more</div>";
+            }
+            rowHead += "</div>";
+
+            cards.push(
+              "<li class=\"match-row" + (hasMore ? " has-more" : "") + "\">" +
+                rowHead +
+                (lines.length ? "<div class=\"rule-lines\">" + lines.join("") + "</div>" : "") +
+                extra +
+                moreHint +
+              "</li>"
+            );
+          });
+        });
+
+        var dbCount = Object.keys(matchedDB).length;
+        setMetrics("categories", dbCount, totalCategories);
+        summaryEl.textContent = "Listed " + totalCategories + " categor" + (totalCategories === 1 ? "y" : "ies") + " from " + dbCount + " database(s).";
+        matchesEl.innerHTML = cards.join("");
+
+        if (cards.length === 0) {
+          showEmptyState("No categories found.", "No loaded database exposed a category matching the regex.");
+        } else {
+          hideEmptyState();
+        }
+      }
+
       function renderListedRuleLine(rule) {
         var format = String((rule && rule.format) || "unknown").trim() || "unknown";
         var ruleset = String((rule && rule.ruleset) || "").trim();
@@ -1693,10 +1806,26 @@
         "</div>";
       }
 
+      function renderListedCategoryLine(category) {
+        var format = String((category && category.format) || "unknown").trim() || "unknown";
+        var source = String((category && category.source) || "").trim();
+        var value = String((category && category.category) || "").trim();
+        var sourceLabel = source || "source";
+
+        return "<div class=\"rule-line\">" +
+          "<div class=\"rule-meta\">" +
+            "<span class=\"badge outline\">" + escapeHTML(format) + "</span>" +
+            "<span class=\"rule-category\">" + escapeHTML(sourceLabel) + "</span>" +
+          "</div>" +
+          "<code class=\"rule-code\">" + escapeHTML(value || "(empty category)") + "</code>" +
+        "</div>";
+      }
+
       function clearResultArea() {
         summaryEl.textContent = "";
         matchesEl.innerHTML = "";
-        setMetrics(sanitizeMode(modeEl.value) === "list" ? "list" : sanitizeType(typeEl.value), 0, 0);
+        var mode = sanitizeMode(modeEl.value);
+        setMetrics(mode === "list" ? "list" : mode === "list-category" ? "categories" : sanitizeType(typeEl.value), 0, 0);
         showEmptyState("No request has run.", "Results will appear here after the first request.");
         toggleCopyActions(false);
       }
@@ -1736,13 +1865,13 @@
         var mode = sanitizeMode(modeEl.value);
         var type = sanitizeType(typeEl.value);
         var value = valueEl.value.trim();
-        var includeMMDB = mode === "list" && includeMMDBEl.checked;
+        var includeMMDB = (mode === "list" || mode === "list-category") && includeMMDBEl.checked;
         setLinks(mode, type, value, includeMMDB);
         toggleCopyActions(false);
-        setMetrics(mode === "list" ? "list" : type, 0, 0);
+        setMetrics(mode === "list" ? "list" : mode === "list-category" ? "categories" : type, 0, 0);
 
         if (!value) {
-          setStatus(mode === "list" ? "Ruleset is required." : "Input is required.", "error");
+          setStatus(mode === "list" ? "Ruleset is required." : mode === "list-category" ? "Category regex is required." : "Input is required.", "error");
           clearResultArea();
           rawEl.textContent = "No request has been made yet.";
           return;
@@ -1751,13 +1880,15 @@
         if (shouldUpdateHistory) {
           var query = mode === "list"
             ? "?mode=list&q=" + encodeURIComponent(value) + (includeMMDB ? "&include_mmdb=true" : "")
-            : "?mode=find&type=" + encodeURIComponent(type) + "&q=" + encodeURIComponent(value);
+            : mode === "list-category"
+              ? "?mode=list-category&q=" + encodeURIComponent(value) + (includeMMDB ? "&include_mmdb=true" : "")
+              : "?mode=find&type=" + encodeURIComponent(type) + "&q=" + encodeURIComponent(value);
           window.history.replaceState(null, "", "/" + query);
         }
 
         var apiPath = buildAPIPath(mode, type, value, includeMMDB);
-        setStatus(mode === "list" ? "Listing..." : "Looking up...", "");
-        showEmptyState(mode === "list" ? "List request running." : "Lookup running.", "Waiting for the API response.");
+        setStatus(mode === "list" ? "Listing..." : mode === "list-category" ? "Listing categories..." : "Looking up...", "");
+        showEmptyState(mode === "list" ? "List request running." : mode === "list-category" ? "Category request running." : "Lookup running.", "Waiting for the API response.");
         matchesEl.innerHTML = "";
         buttonEl.disabled = true;
 
@@ -1768,14 +1899,16 @@
 
           if (!response.ok) {
             var msg = payload && payload.error ? payload.error : "Request failed";
-            setStatus((mode === "list" ? "List" : "Lookup") + " failed: " + msg, "error");
+            setStatus((mode === "list" ? "List" : mode === "list-category" ? "Category list" : "Lookup") + " failed: " + msg, "error");
             clearResultArea();
             return;
           }
 
-          setStatus(mode === "list" ? "List succeeded." : "Lookup succeeded.", "ok");
+          setStatus(mode === "list" ? "List succeeded." : mode === "list-category" ? "Category list succeeded." : "Lookup succeeded.", "ok");
           if (mode === "list") {
             renderListSummary(payload);
+          } else if (mode === "list-category") {
+            renderListCategorySummary(payload);
           } else {
             renderSummary(payload);
           }
@@ -1860,9 +1993,9 @@
         modeEl.value = urlMode;
         typeEl.value = urlType;
         valueEl.value = urlValue;
-        includeMMDBEl.checked = urlMode === "list" && includeMMDB;
+        includeMMDBEl.checked = (urlMode === "list" || urlMode === "list-category") && includeMMDB;
         syncModeUI();
-        setMetrics(urlMode === "list" ? "list" : urlType, 0, 0);
+        setMetrics(urlMode === "list" ? "list" : urlMode === "list-category" ? "categories" : urlType, 0, 0);
         setLinks(urlMode, urlType, urlValue, includeMMDBEl.checked);
 
         if (urlValue) {

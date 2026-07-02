@@ -43,20 +43,21 @@ type Query struct {
 }
 
 type CLIConfig struct {
-	Command     string
-	DBDir       string
-	JSONPath    string
-	ConvertIn   string
-	ConvertOut  string
-	ConvertTo   string
-	Rulesets    []string
-	ReportEmpty bool
-	IncludeMMDB bool
-	Verbose     int
-	ListenAddr  string
-	WebUIPath   string
-	APIOnly     bool
-	Inputs      []RawInput
+	Command          string
+	DBDir            string
+	JSONPath         string
+	ConvertIn        string
+	ConvertOut       string
+	ConvertTo        string
+	Rulesets         []string
+	CategoryPatterns []string
+	ReportEmpty      bool
+	IncludeMMDB      bool
+	Verbose          int
+	ListenAddr       string
+	WebUIPath        string
+	APIOnly          bool
+	Inputs           []RawInput
 }
 
 type DiscoveryResult struct {

@@ -22,9 +22,28 @@ capabilities added through the repository history.
 - MMDB/MetaDB sources are skipped by default when mixed with other database
   types, can be included with `--include-mmdb`, and are auto-included when they
   are the only loaded database type. Included MMDB lists use a generated
-  source-hash-checked cache.
+  source-hash-checked cache with category names and category-to-rule data.
 - Supports human-readable stdout, `--json`, `GET /api/list/<ruleset>`, the
   `include_mmdb=true` API toggle, and web UI list mode.
+
+### Category Discovery
+
+- Lists databases and category names matching case-insensitive regular
+  expressions with `geogrep list-category`.
+- Supports `-db/--database` for explicit database root or single-file
+  selection.
+- Uses the same MMDB/MetaDB policy as ruleset listing: skipped by default when
+  mixed with other database types, included with `--include-mmdb`, and
+  auto-included when MMDB/MetaDB is the only loaded database type.
+- Reads cached MMDB/MetaDB `category_names` when available and writes that
+  cache after a full scan.
+- Supports structured CLI export with `--json`.
+- Reports `source | format | category` rows grouped by database.
+- Uses the same meaningful category names as ruleset listing, including source
+  filename stems for sparse files and opt-in categories derived from
+  MMDB/MetaDB records.
+- Exposes category discovery through `GET /api/list-category/<pattern>` and
+  embedded web UI category mode.
 
 ### Input Modes
 
@@ -84,6 +103,9 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
 - `geogrep list [--include-mmdb] [-db DB_DIR|DB_FILE] RULESET_NAME [...]` lists
   every rule from exact, case-insensitive ruleset/category names across loaded
   databases.
+- `geogrep list-category [--include-mmdb] [-db DB_DIR|DB_FILE] CATEGORY_REGEX
+  [...]` lists which loaded databases contain category names matching
+  case-insensitive regex patterns.
 - `geogrep list --json PATH ...` writes structured list output for automation.
 - Verbose mode (`-v` or `--verbose`) enables explicit no-match reporting.
 - `--json PATH` writes structured metadata, query results, matches, optional
@@ -118,10 +140,12 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
   - `GET /api/find/domain/<domain>`
   - `GET /api/find/keyword/<keyword>`
   - `GET /api/list/<ruleset>` with optional `include_mmdb=true`
+  - `GET /api/list-category/<pattern>` with optional `include_mmdb=true`
 - `--api-only` disables UI routes.
 - `--webui PATH` serves custom static UI files.
 - Share routes under `/find/<type>/<value>` redirect to the UI and auto-run
-  the lookup; `/find/list/<ruleset>` opens ruleset listing mode.
+  the lookup; `/find/list/<ruleset>` opens ruleset listing mode, and
+  `/find/list-category/<pattern>` opens category discovery mode.
 
 ### Embedded Web UI
 
@@ -133,6 +157,8 @@ Web/API routes expose the same modes under `/api/find/<mode>/<value>`.
   copy buttons, and raw JSON inspection.
 - Ruleset listing mode uses the same result surface and raw JSON inspection,
   with an MMDB include toggle.
+- Category discovery mode lists matching database/category names and supports
+  share/API URL copy plus raw JSON inspection.
 - The UI preserves existing API and share-link behavior.
 
 ### Web Hardening and Privacy
@@ -195,6 +221,10 @@ The project history is compact and linear:
   - Added explicit MMDB/MetaDB opt-in for list output, MMDB-only auto-inclusion,
     compact source-hash-checked list caches, discovery ignores for generated
     caches, and web/API include toggles.
+- `feat: add category regex listing`
+  - Added `geogrep list-category`, `--json` export, `GET
+    /api/list-category/<pattern>`, share redirects, and web UI category mode
+    for finding databases and category names by case-insensitive regex pattern.
 - `build(release): bump version to 0.3.1`
   - Released loader validation hardening, atomic conversion output replacement,
     improved invalid-rule reporting, AdGuard domain matcher behavior, embedded

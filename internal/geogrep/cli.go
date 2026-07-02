@@ -16,7 +16,7 @@ const (
 
 func parseCLIArgs(args []string) (CLIConfig, error) {
 	if len(args) == 0 {
-		return CLIConfig{}, errors.New("missing subcommand: use 'find', 'list', 'convert', 'version', or 'web'")
+		return CLIConfig{}, errors.New("missing subcommand: use 'find', 'list', 'list-category', 'convert', 'version', or 'web'")
 	}
 
 	subcommand := strings.TrimSpace(args[0])
@@ -30,6 +30,8 @@ func parseCLIArgs(args []string) (CLIConfig, error) {
 		return parseFindArgs(args[1:])
 	case "list":
 		return parseListArgs(args[1:])
+	case "list-category":
+		return parseListCategoryArgs(args[1:])
 	case "convert":
 		return parseConvertArgs(args[1:])
 	case "web":
@@ -206,6 +208,61 @@ func parseListArgs(args []string) (CLIConfig, error) {
 
 	if len(cfg.Rulesets) == 0 {
 		return CLIConfig{}, errors.New("list requires at least one ruleset name")
+	}
+
+	return cfg, nil
+}
+
+func parseListCategoryArgs(args []string) (CLIConfig, error) {
+	cfg := CLIConfig{Command: "list-category"}
+	stopFlagParsing := false
+
+	for i := 0; i < len(args); i++ {
+		arg := strings.TrimSpace(args[i])
+		if arg == "" {
+			continue
+		}
+
+		if stopFlagParsing {
+			cfg.CategoryPatterns = append(cfg.CategoryPatterns, arg)
+			continue
+		}
+
+		handled, next, err := parseDatabaseArg(&cfg, args, i, arg)
+		if err != nil {
+			return CLIConfig{}, err
+		}
+		if handled {
+			i = next
+			continue
+		}
+
+		switch {
+		case arg == "--":
+			stopFlagParsing = true
+		case arg == "--include-mmdb":
+			cfg.IncludeMMDB = true
+		case strings.HasPrefix(arg, "--json="):
+			cfg.JSONPath = strings.TrimSpace(strings.TrimPrefix(arg, "--json="))
+			if cfg.JSONPath == "" {
+				return CLIConfig{}, errors.New("--json requires a non-empty path")
+			}
+		case arg == "--json":
+			value, next, err := consumeNextArg(args, i, "--json")
+			if err != nil {
+				return CLIConfig{}, err
+			}
+			cfg.JSONPath = value
+			i = next
+		case strings.HasPrefix(arg, "-"):
+			return CLIConfig{}, fmt.Errorf("unknown flag: %s", arg)
+		default:
+			cfg.CategoryPatterns = append(cfg.CategoryPatterns, arg)
+		}
+	}
+
+	if len(cfg.CategoryPatterns) == 0 {
+		return CLIConfig{}, errors.New("list-category requires at least one category regex")
 	}
 
 	return cfg, nil

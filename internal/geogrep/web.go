@@ -53,6 +53,16 @@ type apiListResponse struct {
 	Result  ListDocument   `json:"result"`
 }
 
+type apiListCategoryRequest struct {
+	Pattern     string `json:"pattern"`
+	IncludeMMDB bool   `json:"include_mmdb"`
+}
+
+type apiListCategoryResponse struct {
+	Request apiListCategoryRequest `json:"request"`
+	Result  ListCategoryDocument   `json:"result"`
+}
+
 type apiErrorResponse struct {
 	Error string `json:"error"`
 }
@@ -109,6 +119,8 @@ func runWeb(cfg CLIConfig) int {
 	mux.HandleFunc("/api/find/keyword/", runtime.makeAPIFindHandler("keyword", ForceKeyword, "/api/find/keyword/"))
 	mux.HandleFunc("/api/list", runtime.handleMissingListRuleset)
 	mux.HandleFunc("/api/list/", runtime.handleAPIList)
+	mux.HandleFunc("/api/list-category", runtime.handleMissingListCategoryPattern)
+	mux.HandleFunc("/api/list-category/", runtime.handleAPIListCategory)
 
 	if cfg.APIOnly {
 		mux.HandleFunc("/", runtime.handleAPIOnlyRoot)
@@ -203,6 +215,9 @@ func (s *webRuntime) buildOpenAPISpec(r *http.Request) map[string]any {
 			"/api/list/{ruleset}": map[string]any{
 				"get": makeListOperation(),
 			},
+			"/api/list-category/{pattern}": map[string]any{
+				"get": makeListCategoryOperation(),
+			},
 			"/openapi.json": map[string]any{
 				"get": map[string]any{
 					"summary": "OpenAPI document",
@@ -272,6 +287,40 @@ func makeListOperation() map[string]any {
 	}
 }
 
+func makeListCategoryOperation() map[string]any {
+	return map[string]any{
+		"summary": "List category names by regex",
+		"parameters": []map[string]any{
+			{
+				"name":        "pattern",
+				"in":          "path",
+				"required":    true,
+				"description": "Case-insensitive category name regular expression",
+				"schema": map[string]any{
+					"type": "string",
+				},
+				"example": "cn",
+			},
+			{
+				"name":        "include_mmdb",
+				"in":          "query",
+				"required":    false,
+				"description": "Include MMDB/MetaDB category data",
+				"schema": map[string]any{
+					"type":    "boolean",
+					"default": false,
+				},
+				"example": true,
+			},
+		},
+		"responses": map[string]any{
+			"200": map[string]any{"description": "Category listing"},
+			"400": map[string]any{"description": "Bad request"},
+			"405": map[string]any{"description": "Method not allowed"},
+		},
+	}
+}
+
 func resolveWebUIFS(customPath string) (fs.FS, error) {
 	if customPath != "" {
 		resolved, err := filepath.Abs(customPath)
@@ -296,6 +345,14 @@ func (s *webRuntime) handleMissingListRuleset(w http.ResponseWriter, r *http.Req
 		return
 	}
 	writeAPIError(w, http.StatusBadRequest, "missing ruleset in path")
+}
+
+func (s *webRuntime) handleMissingListCategoryPattern(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	writeAPIError(w, http.StatusBadRequest, "missing category regex in path")
 }
 
 func (s *webRuntime) handleAPIList(w http.ResponseWriter, r *http.Request) {
@@ -337,6 +394,56 @@ func (s *webRuntime) handleAPIList(w http.ResponseWriter, r *http.Request) {
 	document := buildListDocument(s.discovery, results, nil)
 	response := apiListResponse{
 		Request: apiListRequest{Ruleset: ruleset, IncludeMMDB: opts.IncludeMMDB},
+		Result:  document,
+	}
+	writeAPIJSON(w, http.StatusOK, response)
+}
+
+func (s *webRuntime) handleAPIListCategory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	escapedPath := r.URL.EscapedPath()
+	escapedPattern := strings.TrimPrefix(escapedPath, "/api/list-category/")
+	if escapedPattern == "" {
+		writeAPIError(w, http.StatusBadRequest, "missing category regex in path")
+		return
+	}
+
+	pattern, err := url.PathUnescape(escapedPattern)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid encoded path value")
+		return
+	}
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		writeAPIError(w, http.StatusBadRequest, "empty category regex")
+		return
+	}
+	if len(pattern) > maxLookupValueLength {
+		writeAPIError(w, http.StatusRequestURITooLong, "category regex too long")
+		return
+	}
+	includeMMDB := parseBoolQuery(r.URL.Query().Get("include_mmdb")) ||
+		parseBoolQuery(r.URL.Query().Get("includeMMDB"))
+	opts := resolveListOptions(s.databases, listOptions{IncludeMMDB: includeMMDB})
+
+	compiled, err := compileCategoryPatterns([]string{pattern})
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	s.lookupMu.Lock()
+	results := listCategoriesWithCompiledPatterns(s.databases, compiled, opts)
+	s.lookupMu.Unlock()
+
+	// Avoid leaking loader/runtime internals in public API responses.
+	document := buildListCategoryDocument(s.discovery, results, nil)
+	response := apiListCategoryResponse{
+		Request: apiListCategoryRequest{Pattern: pattern, IncludeMMDB: opts.IncludeMMDB},
 		Result:  document,
 	}
 	writeAPIJSON(w, http.StatusOK, response)
@@ -429,6 +536,7 @@ func (s *webRuntime) handleAPIOnlyRoot(w http.ResponseWriter, r *http.Request) {
 			"GET /api/find/domain/<domain>",
 			"GET /api/find/keyword/<keyword>",
 			"GET /api/list/<ruleset>",
+			"GET /api/list-category/<pattern>",
 		},
 	})
 }
@@ -447,6 +555,25 @@ func (s *webRuntime) handleShareRedirect(w http.ResponseWriter, r *http.Request)
 	}
 
 	kind := parts[0]
+	if kind == "list-category" {
+		value, err := url.PathUnescape(parts[1])
+		if err != nil {
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+		value = strings.TrimSpace(value)
+		if value == "" {
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+		target := "/?mode=list-category&q=" + url.QueryEscape(value)
+		if parseBoolQuery(r.URL.Query().Get("include_mmdb")) ||
+			parseBoolQuery(r.URL.Query().Get("includeMMDB")) {
+			target += "&include_mmdb=true"
+		}
+		http.Redirect(w, r, target, http.StatusFound)
+		return
+	}
 	if kind == "list" {
 		value, err := url.PathUnescape(parts[1])
 		if err != nil {

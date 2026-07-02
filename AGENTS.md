@@ -30,13 +30,16 @@ Important paths:
 
 ## Current Behavior to Preserve
 
-- CLI subcommands are `find`, `list`, `convert`, `web`, and `version`.
+- CLI subcommands are `find`, `list`, `list-category`, `convert`, `web`, and
+  `version`.
 - `find` supports `-db/--database`, `--json`, `-v/--verbose`, `-4`, `-6`, `-d`,
   and `-k`.
 - `list` supports `-db/--database`, `--json`, and one or more exact
   case-insensitive ruleset names. For grouped sparse files, the direct child
   directory is the database, each direct file is the ruleset, and each file
   line is a rule.
+- `list-category` supports `-db/--database`, `--include-mmdb`, `--json`, and
+  one or more case-insensitive regex patterns for category discovery.
 - `convert` supports `-i/--input`, `-o/--output`, and `--to`.
 - `web` defaults to `127.0.0.1:8080` for normal and production runs.
 - `GEOGREP_ENV=development` or `GEOGREP_ENV=dev` changes the default web
@@ -50,9 +53,11 @@ Important paths:
   - `/api/find/domain/<value>`
   - `/api/find/keyword/<value>`
   - `/api/list/<ruleset>`
+  - `/api/list-category/<pattern>`
 - Share routes under `/find/<type>/<value>` redirect to
   `/?mode=find&type=...&q=...`. `/find/list/<ruleset>` redirects to
-  `/?mode=list&q=...`.
+  `/?mode=list&q=...`. `/find/list-category/<pattern>` redirects to
+  `/?mode=list-category&q=...`.
 - API responses must not expose local database root paths or loader diagnostics.
 - Web path traversal guards and security headers are intentional.
 - The embedded UI is currently a single dependency-free static HTML file.
@@ -134,7 +139,8 @@ When editing `internal/geogrep/webui/index.html`:
 
 - Preserve element IDs used by the script unless updating the script at the
   same time.
-- Preserve API path construction and share URL behavior.
+- Preserve API path construction and share URL behavior, including lookup,
+  ruleset listing, and category discovery modes.
 - Keep the UI usable on desktop and mobile.
 - Keep result rendering safe by escaping API-provided text before injecting
   HTML.

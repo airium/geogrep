@@ -236,10 +236,10 @@ func printListMMDBNotice(databases []LoadedDatabase, requestedIncludeMMDB, effec
 		return
 	}
 	if effectiveIncludeMMDB {
-		fmt.Println("[geogrep] only MMDB/MetaDB databases found; including MMDB list data automatically")
+		fmt.Println("[geogrep] only MMDB/MetaDB databases found; including MMDB/MetaDB data automatically")
 		return
 	}
-	fmt.Println("[geogrep] MMDB/MetaDB databases skipped for list; add --include-mmdb to include them")
+	fmt.Println("[geogrep] MMDB/MetaDB databases skipped; add --include-mmdb to include them")
 }
 
 func printListResults(results []listedRuleset) {

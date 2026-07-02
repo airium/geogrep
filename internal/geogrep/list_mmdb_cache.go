@@ -14,10 +14,11 @@ import (
 const mmdbListCacheSchema = "geogrep-mmdb-list-cache-v1"
 
 type mmdbListCacheDocument struct {
-	Schema     string              `json:"schema"`
-	Source     string              `json:"source"`
-	SourceSHA  string              `json:"source_sha256"`
-	Categories map[string][]string `json:"categories"`
+	Schema        string              `json:"schema"`
+	Source        string              `json:"source"`
+	SourceSHA     string              `json:"source_sha256"`
+	CategoryNames []string            `json:"category_names"`
+	Categories    map[string][]string `json:"categories"`
 }
 
 func listMMDBRulesCached(dbName string, source LoadedSource, requestedRuleset string) []listedRule {
@@ -60,20 +61,22 @@ func buildMMDBListCache(source LoadedSource, sourceHash string) *mmdbListCacheDo
 	}
 	if len(categories) == 0 {
 		return &mmdbListCacheDocument{
-			Schema:     mmdbListCacheSchema,
-			Source:     filepath.Base(source.Path),
-			SourceSHA:  sourceHash,
-			Categories: map[string][]string{},
+			Schema:        mmdbListCacheSchema,
+			Source:        filepath.Base(source.Path),
+			SourceSHA:     sourceHash,
+			CategoryNames: []string{},
+			Categories:    map[string][]string{},
 		}
 	}
 	for category := range categories {
 		sort.Strings(categories[category])
 	}
 	return &mmdbListCacheDocument{
-		Schema:     mmdbListCacheSchema,
-		Source:     filepath.Base(source.Path),
-		SourceSHA:  sourceHash,
-		Categories: categories,
+		Schema:        mmdbListCacheSchema,
+		Source:        filepath.Base(source.Path),
+		SourceSHA:     sourceHash,
+		CategoryNames: sortedMMDBCategoryNames(categories),
+		Categories:    categories,
 	}
 }
 
@@ -153,7 +156,27 @@ func readValidMMDBListCache(sourcePath, sourceHash string) (mmdbListCacheDocumen
 	if doc.Schema != mmdbListCacheSchema || doc.SourceSHA != sourceHash || doc.Categories == nil {
 		return mmdbListCacheDocument{}, false
 	}
+	doc.CategoryNames = sortedMMDBCacheCategoryNames(doc)
 	return doc, true
+}
+
+func readValidMMDBCategoryNamesCache(sourcePath, sourceHash string) ([]string, bool) {
+	data, err := os.ReadFile(mmdbListCachePath(sourcePath))
+	if err != nil {
+		return nil, false
+	}
+	var doc struct {
+		Schema        string   `json:"schema"`
+		SourceSHA     string   `json:"source_sha256"`
+		CategoryNames []string `json:"category_names"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, false
+	}
+	if doc.Schema != mmdbListCacheSchema || doc.SourceSHA != sourceHash || doc.CategoryNames == nil {
+		return nil, false
+	}
+	return sortedUniqueNonEmptyStrings(doc.CategoryNames), true
 }
 
 func writeMMDBListCache(sourcePath string, doc *mmdbListCacheDocument) {
@@ -203,4 +226,32 @@ func isMMDBListCacheFile(path string) bool {
 		return false
 	}
 	return probe.Schema == mmdbListCacheSchema
+}
+
+func sortedMMDBCacheCategoryNames(doc mmdbListCacheDocument) []string {
+	if doc.CategoryNames != nil {
+		return sortedUniqueNonEmptyStrings(doc.CategoryNames)
+	}
+	return sortedMMDBCategoryNames(doc.Categories)
+}
+
+func sortedUniqueNonEmptyStrings(values []string) []string {
+	seen := make(map[string]string, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		key := strings.ToLower(value)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = value
+	}
+	out := make([]string, 0, len(seen))
+	for _, value := range seen {
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
 }

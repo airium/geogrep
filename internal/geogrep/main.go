@@ -23,6 +23,9 @@ func Execute(args []string) int {
 	if cfg.Command == "list" {
 		return runList(cfg)
 	}
+	if cfg.Command == "list-category" {
+		return runListCategory(cfg)
+	}
 	if cfg.Command == "web" {
 		return runWeb(cfg)
 	}
@@ -64,5 +67,5 @@ func Execute(args []string) int {
 
 func printUsage(parseErr error) {
 	fmt.Fprintf(os.Stderr, "error: %v\n", parseErr)
-	fmt.Fprintln(os.Stderr, "usage:\n  geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db|--database DB_DIR|DB_FILE] [-4 IPv4/CIDR] [-6 IPv6/CIDR6] [-d DOMAIN] [-k KEYWORD] IPv4/CIDR/IPv6/CIDR6/DOMAIN/KEYWORD\n  geogrep list [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] RULESET_NAME [...]\n  geogrep convert -i INPUT -o OUTPUT [--to FORMAT]\n  geogrep web [-db|--database DB_DIR|DB_FILE] [-l|--listen IP:PORT] [--webui PATH] [--api-only] [-v|--verbose[=N]]\n  geogrep version")
+	fmt.Fprintln(os.Stderr, "usage:\n  geogrep find [--json RESULT_PATH] [-v|--verbose[=N]] [-db|--database DB_DIR|DB_FILE] [-4 IPv4/CIDR] [-6 IPv6/CIDR6] [-d DOMAIN] [-k KEYWORD] IPv4/CIDR/IPv6/CIDR6/DOMAIN/KEYWORD\n  geogrep list [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] RULESET_NAME [...]\n  geogrep list-category [--include-mmdb] [--json RESULT_PATH] [-db|--database DB_DIR|DB_FILE] CATEGORY_REGEX [...]\n  geogrep convert -i INPUT -o OUTPUT [--to FORMAT]\n  geogrep web [-db|--database DB_DIR|DB_FILE] [-l|--listen IP:PORT] [--webui PATH] [--api-only] [-v|--verbose[=N]]\n  geogrep version")
 }
