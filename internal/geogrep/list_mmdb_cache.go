@@ -12,6 +12,7 @@ import (
 )
 
 const mmdbListCacheSchema = "geogrep-mmdb-list-cache-v1"
+const maxMMDBListCacheProbeBytes = 64 << 10
 
 type mmdbListCacheDocument struct {
 	Schema        string              `json:"schema"`
@@ -215,14 +216,16 @@ func isMMDBListCacheFile(path string) bool {
 	if strings.ToLower(filepath.Ext(path)) != ".json" {
 		return false
 	}
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return false
 	}
+	defer file.Close()
+
 	var probe struct {
 		Schema string `json:"schema"`
 	}
-	if err := json.Unmarshal(data, &probe); err != nil {
+	if err := json.NewDecoder(io.LimitReader(file, maxMMDBListCacheProbeBytes)).Decode(&probe); err != nil {
 		return false
 	}
 	return probe.Schema == mmdbListCacheSchema

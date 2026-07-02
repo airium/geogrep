@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/metacubex/geo/encoding/v2raygeo"
@@ -852,5 +853,26 @@ func TestListRulesetsDoesNotOverwriteNonCacheJSON(t *testing.T) {
 	}
 	if string(after) != string(original) {
 		t.Fatalf("non-cache json was overwritten: %s", after)
+	}
+}
+
+func TestIsMMDBListCacheFileUsesBoundedSchemaProbe(t *testing.T) {
+	tmp := t.TempDir()
+	cachePath := filepath.Join(tmp, "geoip.json")
+	cacheData := []byte(fmt.Sprintf(`{"schema":%q,"source_sha256":"abc","categories":{}}`, mmdbListCacheSchema))
+	if err := os.WriteFile(cachePath, cacheData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !isMMDBListCacheFile(cachePath) {
+		t.Fatal("expected generated cache to be detected")
+	}
+
+	rulesPath := filepath.Join(tmp, "rules.json")
+	largeRule := `{"version":1,"rules":[{"domain":"` + strings.Repeat("a", maxMMDBListCacheProbeBytes*2) + `.example"}]}`
+	if err := os.WriteFile(rulesPath, []byte(largeRule), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if isMMDBListCacheFile(rulesPath) {
+		t.Fatal("large normal ruleset should not be detected as generated cache")
 	}
 }
